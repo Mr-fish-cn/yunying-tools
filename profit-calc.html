@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动利润计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 16px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 22px; color: #1e293b; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: #64748b; font-size: 13px; margin-bottom: 16px; }
+        .card { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .card-title { font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .label { font-weight: 500; font-size: 12px; color: #374151; margin-bottom: 4px; display: block; }
+        .hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .settings-grid { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+        .settings-item { display: flex; flex-direction: column; gap: 3px; }
+        .settings-item label { font-size: 11px; color: #64748b; }
+        .settings-item input, .settings-item select { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; width: 110px; }
+        .settings-item input:focus, .settings-item select:focus { outline: none; border-color: #3b82f6; }
+        .mode-switch { display: flex; gap: 0; margin-bottom: 14px; }
+        .mode-switch button { flex: 1; padding: 10px; border: 2px solid #e2e8f0; background: #fff; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #64748b; }
+        .mode-switch button:first-child { border-radius: 8px 0 0 8px; }
+        .mode-switch button:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+        .mode-switch button.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+        .activity-toggle { display: flex; gap: 0; margin-bottom: 12px; }
+        .activity-toggle button { flex: 1; padding: 8px; border: 2px solid #e2e8f0; background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #64748b; }
+        .activity-toggle button:first-child { border-radius: 8px 0 0 8px; }
+        .activity-toggle button:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+        .activity-toggle button.active { background: #10b981; color: #fff; border-color: #10b981; }
+        .input-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 3px; }
+        .input-group label { font-size: 12px; color: #64748b; font-weight: 500; }
+        .input-group input, .input-group select { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #3b82f6; }
+        .rmb-hint { font-size: 12px; color: #10b981; min-height: 16px; font-weight: 500; }
+        .rmb-hint.zero { color: #94a3b8; }
+        .usd-hint { font-size: 12px; color: #3b82f6; min-height: 16px; font-weight: 500; }
+        .usd-hint.zero { color: #94a3b8; }
+        .btn { display: inline-flex; align-items: center; gap: 4px; padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline { background: #f1f5f9; color: #374151; border: 1px solid #e2e8f0; }
+        .btn-outline:hover { background: #e2e8f0; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
+        .result-item { background: #f8fafc; border-radius: 8px; padding: 10px; text-align: center; }
+        .result-item .val { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+        .result-item .desc { font-size: 11px; color: #64748b; }
+        .profit-positive { color: #10b981; }
+        .profit-negative { color: #ef4444; }
+        .cost-breakdown { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 12px; }
+        .cost-breakdown .row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed #e0f2fe; }
+        .cost-breakdown .row:last-child { border-bottom: none; font-weight: 600; }
+        .reverse-section { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-top: 12px; }
+        .reverse-section .card-title { color: #92400e; margin-bottom: 8px; }
+        .reverse-result { background: #ecfdf5; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 13px; line-height: 1.8; }
+        .reverse-result.no-solution { background: #fef2f2; }
+        .tab-bar { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 14px; }
+        .tab-bar button { padding: 8px 18px; border: none; background: none; font-size: 13px; font-weight: 500; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .tab-bar button.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .checkbox-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; }
+        .checkbox-row label { font-size: 13px; color: #374151; cursor: pointer; }
+        .rule-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+        .rule-table th, .rule-table td { padding: 5px 6px; border: 1px solid #e2e8f0; text-align: center; }
+        .rule-table th { background: #f8fafc; color: #64748b; font-size: 11px; }
+        .rule-table input { width: 70px; padding: 3px 5px; border: 1px solid #d1d5db; border-radius: 4px; text-align: center; font-size: 12px; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #1e293b; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .section-divider { border-top: 1px solid #e2e8f0; margin: 12px 0; }
+        .logistics-select { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .logistics-select select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+        .logistics-price { font-size: 13px; font-weight: 600; color: #3b82f6; }
+        .batch-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; }
+        .batch-table { width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap; }
+        .batch-table th { background: #f8fafc; padding: 6px 4px; text-align: center; font-weight: 600; color: #64748b; border-bottom: 2px solid #e2e8f0; font-size: 10px; position: sticky; top: 0; }
+        .batch-table td { padding: 4px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+        .batch-table input { width: 60px; padding: 3px 4px; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 11px; text-align: right; }
+        @media (max-width: 768px) {
+            .input-row { grid-template-columns: 1fr 1fr; }
+            .result-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 活动利润计算器</h1>
+        <p class="subtitle">SHEIN · 海外工厂 / 国内发货 · 活动定价 · 利润计算 · 反推成交价</p>
+
+        <!-- 全局参数 -->
+        <div class="card">
+            <div class="card-title">⚙️ 全局参数</div>
+            <div class="settings-grid">
+                <div class="settings-item">
+                    <label>汇率 (USD→CNY)</label>
+                    <input type="number" id="exchangeRate" value="6.5" step="0.01" min="0" onchange="recalcAll()">
+                </div>
+                <div class="settings-item">
+                    <label>前台溢价率 (%)</label>
+                    <input type="number" id="premiumRate" value="25" step="1" min="0" onchange="recalcAll()">
+                </div>
+                <div class="settings-item">
+                    <label>运补金额 ($/单)</label>
+                    <input type="number" id="subsidyAmount" value="2.99" step="0.01" min="0" onchange="recalcAll()">
+                </div>
+                <div class="settings-item">
+                    <label>运补门槛 ($)</label>
+                    <input type="number" id="subsidyThreshold" value="30" step="1" min="0" onchange="recalcAll()">
+                </div>
+                <div class="settings-item">
+                    <label>售后率 (%)</label>
+                    <input type="number" id="afterSaleRate" value="0" step="0.1" min="0" max="100" onchange="recalcAll()">
+                </div>
+            </div>
+        </div>
+
+        <!-- 发货模式 -->
+        <div class="card">
+            <div class="card-title">🚚 发货模式</div>
+            <div class="mode-switch">
+                <button class="active" onclick="setMode('overseas')">🏭 海外工厂发货</button>
+                <button onclick="setMode('domestic')">📦 国内发货</button>
+            </div>
+
+            <!-- ====== 单件计算 ====== -->
+            <div id="singleMode">
+                <div class="activity-toggle">
+                    <button class="active" onclick="setActivityType('marketing')">营销活动（不限购）</button>
+                    <button onclick="setActivityType('tool')">营销工具（可限购）</button>
+                </div>
+                <div id="purchaseLimitWrap" style="display:none">
+                    <div class="input-group" style="max-width:160px;margin-bottom:10px">
+                        <label>限购件数</label>
+                        <input type="number" id="purchaseLimit" min="1" placeholder="不填不限购" oninput="calcSingle()">
+                    </div>
+                </div>
+
+                <!-- 基础输入 -->
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>核价 ($)</label>
+                        <input type="number" id="sAppraisedPrice" step="0.01" min="0" placeholder="0.00" oninput="onUsdInput(this); calcSingle()">
+                        <div class="rmb-hint zero" id="sAppraisedPriceRmb">¥0.00</div>
+                    </div>
+                    <div class="input-group">
+                        <label>活动折扣 (%)</label>
+                        <input type="number" id="sDiscount" value="100" step="1" min="1" max="100" oninput="calcSingle()">
+                        <div class="hint">100=不打折 80=8折</div>
+                    </div>
+                    <div class="input-group">
+                        <label>件数</label>
+                        <input type="number" id="sQuantity" value="1" min="1" oninput="calcSingle()">
+                    </div>
+                    <div class="input-group">
+                        <label>采购成本 (¥/件)</label>
+                        <input type="number" id="sCost" step="0.01" min="0" placeholder="0.00" oninput="calcSingle()">
+                    </div>
+                </div>
+
+                <!-- 海外工厂模式：简单运费 -->
+                <div id="overseasInputs">
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>单件运费 ($)</label>
+                            <input type="number" id="sOverseasShipping" step="0.01" min="0" placeholder="0.00" oninput="onUsdInput(this); calcSingle()">
+                            <div class="rmb-hint zero" id="sOverseasShippingRmb">¥0.00</div>
+                        </div>
+                        <div class="input-group">
+                            <label>作图成本 (¥/单)</label>
+                            <input type="number" id="sImageCost" step="0.01" min="0" value="0" oninput="calcSingle()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 国内发货模式：复杂运费 -->
+                <div id="domesticInputs" style="display:none">
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>克重 (g)</label>
+                            <input type="number" id="sWeight" step="0.1" min="0" placeholder="0" oninput="calcSingle()">
+                        </div>
+                        <div class="input-group">
+                            <label>作图成本 (¥/单)</label>
+                            <input type="number" id="sImageCostD" step="0.01" min="0" value="0" oninput="calcSingle()">
+                        </div>
+                        <div class="input-group">
+                            <label>国际运费单价 ($/kg)</label>
+                            <input type="number" id="sIntlRate" step="0.01" min="0" placeholder="0.00" oninput="calcSingle()">
+                        </div>
+                        <div class="input-group">
+                            <label>国内打包费 (¥/件)</label>
+                            <input type="number" id="sPackFee" step="0.01" min="0" value="1" oninput="calcSingle()">
+                        </div>
+                        <div class="input-group">
+                            <label>头程运费基数 (¥)</label>
+                            <input type="number" id="sFirstMileBase" step="0.01" min="0" value="50" oninput="calcSingle()">
+                            <div class="hint">50÷(20÷克重g×1000)</div>
+                        </div>
+                        <div class="input-group">
+                            <label>海外投递 ($/单)</label>
+                            <input type="number" id="sDeliveryFee" step="0.01" min="0" value="0.25" oninput="calcSingle()">
+                        </div>
+                        <div class="input-group">
+                            <label>海外预上网 (¥/单)</label>
+                            <input type="number" id="sPreListFee" step="0.01" min="0" value="2.5" oninput="calcSingle()">
+                        </div>
+                    </div>
+                    <div style="margin-top:8px">
+                        <label class="label" style="margin-bottom:6px">海外尾程物流（按克重选择物流商）</label>
+                        <div class="logistics-select">
+                            <select id="sLastMileProvider" onchange="calcSingle()"></select>
+                            <span class="logistics-price" id="sLastMilePrice">未选择</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="checkbox-row" style="margin-top:8px">
+                    <input type="checkbox" id="sHasSubsidy" checked onchange="calcSingle()">
+                    <label for="sHasSubsidy">有运费补贴 ($<span id="subsidyDisplay">2.99</span>/单)</label>
+                </div>
+
+                <!-- 计算结果 -->
+                <div id="singleResult" style="display:none">
+                    <div class="section-divider"></div>
+                    <div class="card-title">📊 利润结果</div>
+                    <div class="result-grid" id="resultGrid"></div>
+                    <div class="cost-breakdown" id="costBreakdown"></div>
+                </div>
+
+                <!-- 反推 -->
+                <div class="reverse-section">
+                    <div class="card-title">🔄 反推成交价</div>
+                    <div class="hint" style="margin-bottom:8px">输入目标售前利润(¥)或售后利润(¥)，反推需要多少成交价</div>
+                    <div class="input-row" style="margin-bottom:0">
+                        <div class="input-group">
+                            <label>目标售前利润 (¥)</label>
+                            <input type="number" id="sTargetPreProfit" step="0.01" min="0" placeholder="反推成交价" oninput="reverseCalc('pre')">
+                        </div>
+                        <div class="input-group">
+                            <label>目标售后利润 (¥)</label>
+                            <input type="number" id="sTargetAfterProfit" step="0.01" min="0" placeholder="反推成交价" oninput="reverseCalc('after')">
+                        </div>
+                    </div>
+                    <div id="reverseResult" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: 批量 / 物流规则 / 国内固定参数 -->
+        <div class="tab-bar">
+            <button class="active" onclick="switchTab('batch')">📊 批量计算</button>
+            <button onclick="switchTab('logistics')">🚚 物流规则</button>
+            <button onclick="switchTab('domesticParams')">💲 国内固定参数</button>
+        </div>
+
+        <!-- 批量计算 -->
+        <div id="tab-batch" class="tab-content active">
+            <div class="card">
+                <div class="card-title">📊 批量利润计算</div>
+                <p class="hint" style="margin-bottom:8px">CSV格式: 品名,成本¥,克重g,核价$(可选),折扣%(可选) | 全局核价和折扣可留空由逐行填写</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
+                    <div class="input-group">
+                        <label>导入CSV</label>
+                        <input type="file" id="batchFile" accept=".csv" onchange="importCSV(event)" style="font-size:12px">
+                    </div>
+                    <div class="input-group">
+                        <label>全局核价 ($)</label>
+                        <input type="number" id="bAppraisedPrice" step="0.01" min="0" placeholder="留空=逐行" style="width:110px" oninput="recalcBatch()">
+                    </div>
+                    <div class="input-group">
+                        <label>全局折扣 (%)</label>
+                        <input type="number" id="bDiscount" value="100" step="1" min="1" max="100" style="width:80px" oninput="recalcBatch()">
+                    </div>
+                    <div class="input-group">
+                        <label>尾程物流商</label>
+                        <select id="bLastMileProvider" style="width:140px" onchange="recalcBatch()"></select>
+                    </div>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="bHasSubsidy" checked onchange="recalcBatch()">
+                    <label for="bHasSubsidy">有运费补贴</label>
+                </div>
+                <div class="batch-table-wrap">
+                    <table class="batch-table" id="batchTable">
+                        <thead><tr>
+                            <th>品名</th><th>成本¥</th><th>克重g</th><th>到仓¥</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th>
+                        </tr></thead>
+                        <tbody id="batchBody"></tbody>
+                    </table>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-outline btn-sm" onclick="addBatchRow()">+ 添加行</button>
+                    <button class="btn btn-outline btn-sm" onclick="clearBatch()">清空</button>
+                    <button class="btn btn-success btn-sm" onclick="exportBatch()">📋 复制</button>
+                    <button class="btn btn-success btn-sm" onclick="exportBatchCSV()">💾 导出CSV</button>
+                </div>
+                <div id="batchSummary" style="margin-top:8px;font-size:12px;color:#64748b"></div>
+            </div>
+        </div>
+
+        <!-- 物流规则 -->
+        <div id="tab-logistics" class="tab-content">
+            <div class="card">
+                <div class="card-title">🚚 物流商运费规则</div>
+                <p class="hint" style="margin-bottom:8px">每个物流商按克重区间设置运费，国内发货模式下用于自动匹配尾程费用</p>
+                <div id="logisticsProviders"></div>
+                <div class="btn-row">
+                    <button class="btn btn-outline btn-sm" onclick="addProvider()">+ 添加物流商</button>
+                    <button class="btn btn-primary btn-sm" onclick="saveLogistics()">保存规则</button>
+                </div>
+            </div>
+            <div class="card" id="intlRateCard">
+                <div class="card-title">📦 国际运费规则（国内发货模式）</div>
+                <p class="hint" style="margin-bottom:8px">按克重区间设置国际运费($/kg)，用于计算到仓成本中的国际运费部分</p>
+                <table class="rule-table" id="intlRateTable">
+                    <thead><tr><th>最低克重(g)</th><th>最高克重(g)</th><th>单价($/kg)</th><th>操作</th></tr></thead>
+                    <tbody id="intlRateBody"></tbody>
+                </table>
+                <div class="btn-row">
+                    <button class="btn btn-outline btn-sm" onclick="addIntlRate()">+ 添加区间</button>
+                    <button class="btn btn-primary btn-sm" onclick="saveIntlRates()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 国内固定参数 -->
+        <div id="tab-domesticParams" class="tab-content">
+            <div class="card">
+                <div class="card-title">💲 国内发货固定参数</div>
+                <p class="hint" style="margin-bottom:10px">以下参数用于国内发货模式的到仓成本计算，批量计算时也会使用这些默认值</p>
+                <div class="settings-grid">
+                    <div class="settings-item">
+                        <label>国内打包费 (¥/件)</label>
+                        <input type="number" id="dPackFee" value="1" step="0.01" min="0" onchange="recalcAll()">
+                    </div>
+                    <div class="settings-item">
+                        <label>头程运费基数 (¥)</label>
+                        <input type="number" id="dFirstMileBase" value="50" step="0.01" min="0" onchange="recalcAll()">
+                        <span class="hint">公式: 此值÷(20÷克重g×1000)</span>
+                    </div>
+                    <div class="settings-item">
+                        <label>头程参数-分母重量(kg)</label>
+                        <input type="number" id="dFirstMileWeight" value="20" step="0.1" min="0" onchange="recalcAll()">
+                        <span class="hint">默认20kg</span>
+                    </div>
+                    <div class="settings-item">
+                        <label>海外投递费 ($/单)</label>
+                        <input type="number" id="dDeliveryFee" value="0.25" step="0.01" min="0" onchange="recalcAll()">
+                    </div>
+                    <div class="settings-item">
+                        <label>海外预上网费 (¥/单)</label>
+                        <input type="number" id="dPreListFee" value="2.5" step="0.01" min="0" onchange="recalcAll()">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ============ 全局状态 ============
+    let state = {
+        mode: 'overseas',
+        activityType: 'marketing',
+        logisticsProviders: [
+            {
+                name: 'Gofo',
+                rules: [
+                    { min: 0, max: 113, price: 2.65 },
+                    { min: 113, max: 227, price: 2.87 },
+                    { min: 227, max: 340, price: 3.32 },
+                    { min: 340, max: 454, price: 3.65 },
+                    { min: 454, max: 907, price: 4.11 },
+                    { min: 907, max: 1361, price: 4.58 },
+                    { min: 1361, max: 1814, price: 4.58 },
+                    { min: 1814, max: 99999, price: 5.50 }
+                ]
+            },
+            {
+                name: 'CBS',
+                rules: [
+                    { min: 0, max: 113, price: 4.24 },
+                    { min: 113, max: 227, price: 4.28 },
+                    { min: 227, max: 340, price: 4.97 },
+                    { min: 340, max: 454, price: 5.94 },
+                    { min: 454, max: 907, price: 10.11 },
+                    { min: 907, max: 1361, price: 11.04 },
+                    { min: 1361, max: 1814, price: 11.04 },
+                    { min: 1814, max: 99999, price: 13.00 }
+                ]
+            },
+            {
+                name: 'USPS',
+                rules: [
+                    { min: 0, max: 113, price: 8.38 },
+                    { min: 113, max: 227, price: 8.38 },
+                    { min: 227, max: 340, price: 9.84 },
+                    { min: 340, max: 454, price: 9.84 },
+                    { min: 454, max: 907, price: 12.58 },
+                    { min: 907, max: 1361, price: 12.58 },
+                    { min: 1361, max: 1814, price: 14.76 },
+                    { min: 1814, max: 99999, price: 16.00 }
+                ]
+            }
+        ],
+        intlRates: [
+            { min: 0, max: 200, price: 8.0 },
+            { min: 200, max: 500, price: 7.0 },
+            { min: 500, max: 1000, price: 6.0 },
+            { min: 1000, max: 99999, price: 5.0 }
+        ],
+        batchData: []
+    };
+
+    // ============ 工具 ============
+    const $ = id => document.getElementById(id);
+    const val = id => parseFloat($(id).value) || 0;
+    const fmt = (n, d=2) => n.toFixed(d);
+    const fmtUSD = n => '$' + fmt(n);
+    const fmtCNY = n => '¥' + fmt(n);
+    const escHtml = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+    function showToast(msg) {
+        const t = $('toast'); t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function gp() {
+        return {
+            rate: val('exchangeRate') || 6.5,
+            premium: (val('premiumRate') || 25) / 100,
+            subsidy: val('subsidyAmount') || 2.99,
+            threshold: val('subsidyThreshold') || 30,
+            afterSaleRate: (val('afterSaleRate') || 0) / 100
+        };
+    }
+
+    // ============ 物流规则查询 ============
+    function getLastMilePrice(providerIdx, weight) {
+        if (providerIdx < 0 || providerIdx >= state.logisticsProviders.length) return null;
+        const p = state.logisticsProviders[providerIdx];
+        for (const r of p.rules) {
+            if (weight >= r.min && weight < r.max) return r.price;
+        }
+        return null;
+    }
+
+    function getIntlRate(weight) {
+        for (const r of state.intlRates) {
+            if (weight >= r.min && weight < r.max) return r.price;
+        }
+        return null;
+    }
+
+    // ============ 到仓成本计算 ============
+    function calcWarehouseCost(params) {
+        const g = gp();
+        if (state.mode === 'overseas') {
+            // 海外工厂：采购成本 + 作图成本(分摊) + 运费
+            const imgPerUnit = params.imageCost / Math.max(1, params.quantity);
+            return params.cost + imgPerUnit + params.shippingUSD * g.rate;
+        } else {
+            // 国内发货
+            const weight = params.weight || 0;
+            const weightKg = weight / 1000;
+            const intlRate = getIntlRate(weight) || 0;
+            const intlShipping = weightKg * intlRate; // $
+            const packFee = params.packFee || 0; // ¥
+            const firstMileBase = params.firstMileBase || 0;
+            const firstMileWeight = params.firstMileWeight || 20;
+            const firstMile = weight > 0 ? firstMileBase / (firstMileWeight / weight * 1000) : 0; // ¥
+            const deliveryFee = params.deliveryFee || 0; // $
+            const preListFee = params.preListFee || 0; // ¥
+            const imgPerUnit = (params.imageCost || 0) / Math.max(1, params.quantity);
+
+            const warehouseCost = params.cost + imgPerUnit + intlShipping * g.rate + packFee + firstMile + deliveryFee * g.rate + preListFee;
+            return { total: warehouseCost, breakdown: { cost: params.cost, imageCost: imgPerUnit, intlShipping, intlRate, packFee, firstMile, deliveryFee, preListFee } };
+        }
+    }
+
+    // ============ 核心利润计算 ============
+    function calcProfit(params) {
+        const g = gp();
+        const transactionPrice = params.appraisedPrice * params.discount / 100;
+        const salesAmount = transactionPrice * (1 + g.premium);
+        const hasSubsidy = params.hasSubsidy && salesAmount <= g.threshold;
+        const subsidyUSD = hasSubsidy ? g.subsidy : 0;
+
+        let warehouseCost, lastMileUSD, breakdown;
+
+        if (state.mode === 'overseas') {
+            const imgPerUnit = (params.imageCost || 0) / Math.max(1, params.quantity);
+            warehouseCost = params.cost + imgPerUnit + (params.shippingUSD || 0) * g.rate;
+            lastMileUSD = 0;
+            breakdown = { cost: params.cost, imageCost: imgPerUnit, shipping: params.shippingUSD || 0, shippingRMB: (params.shippingUSD || 0) * g.rate };
+        } else {
+            const wc = calcWarehouseCost(params);
+            warehouseCost = wc.total;
+            breakdown = wc.breakdown;
+            lastMileUSD = params.lastMileUSD || 0;
+        }
+
+        // 售前利润 = (折后价 + 运补 - 尾程) × 汇率 - 到仓成本
+        const preSaleProfitUSD = transactionPrice + subsidyUSD - lastMileUSD;
+        const revenueCNY = preSaleProfitUSD * g.rate;
+        const preSaleProfit = revenueCNY - warehouseCost * params.quantity;
+
+        // 售后利润 = (1-售后率)×售前利润 - 售后率×(尾程费+到仓成本)×件数
+        // 其中 尾程费+到仓成本 是每件退货的损失，再×件数=退货总损失
+        const afterSaleLossPerUnit = lastMileUSD * g.rate + warehouseCost;
+        const afterSaleProfit = (1 - g.afterSaleRate) * preSaleProfit - g.afterSaleRate * afterSaleLossPerUnit * params.quantity;
+
+        const profitMargin = (transactionPrice + subsidyUSD) * g.rate * params.quantity > 0
+            ? preSaleProfit / ((transactionPrice + subsidyUSD) * g.rate * params.quantity) * 100 : 0;
+
+        return {
+            transactionPrice, salesAmount, hasSubsidy, subsidyUSD,
+            warehouseCost, lastMileUSD, preSaleProfit, afterSaleProfit, profitMargin,
+            perUnitProfit: params.quantity > 0 ? preSaleProfit / params.quantity : 0,
+            revenueCNY: (transactionPrice + subsidyUSD) * g.rate * params.quantity,
+            totalCostCNY: warehouseCost * params.quantity + lastMileUSD * g.rate * params.quantity,
+            breakdown
+        };
+    }
+
+    // ============ 模式切换 ============
+    function setMode(mode) {
+        state.mode = mode;
+        document.querySelectorAll('.mode-switch button').forEach((b, i) => {
+            b.classList.toggle('active', (mode === 'overseas' && i === 0) || (mode === 'domestic' && i === 1));
+        });
+        $('overseasInputs').style.display = mode === 'overseas' ? 'block' : 'none';
+        $('domesticInputs').style.display = mode === 'domestic' ? 'block' : 'none';
+        $('intlRateCard').style.display = mode === 'domestic' ? 'block' : 'none';
+        calcSingle();
+    }
+
+    function setActivityType(type) {
+        state.activityType = type;
+        document.querySelectorAll('.activity-toggle button').forEach((b, i) => {
+            b.classList.toggle('active', (type === 'marketing' && i === 0) || (type === 'tool' && i === 1));
+        });
+        $('purchaseLimitWrap').style.display = type === 'tool' ? 'block' : 'none';
+        calcSingle();
+    }
+
+    // ============ 物流商渲染 ============
+    function renderLogisticsProviders() {
+        // 渲染单件选择
+        const selSingle = $('sLastMileProvider');
+        const selBatch = $('bLastMileProvider');
+        const opts = state.logisticsProviders.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+        selSingle.innerHTML = opts;
+        selBatch.innerHTML = opts;
+        // 渲染物流商管理
+        const container = $('logisticsProviders');
+        container.innerHTML = state.logisticsProviders.map((p, pi) => `
+            <div class="card" style="background:#f8fafc;padding:12px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <input value="${escHtml(p.name)}" onchange="state.logisticsProviders[${pi}].name=this.value;renderLogisticsProviders()" style="font-weight:600;font-size:13px;border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;width:150px">
+                    <button class="btn btn-outline btn-sm" onclick="removeProvider(${pi})" style="color:#ef4444">删除</button>
+                </div>
+                <table class="rule-table">
+                    <thead><tr><th>最低(g)</th><th>最高(g)</th><th>运费($)</th><th></th></tr></thead>
+                    <tbody>
+                        ${p.rules.map((r, ri) => `
+                            <tr>
+                                <td><input type="number" value="${r.min}" onchange="state.logisticsProviders[${pi}].rules[${ri}].min=+this.value" step="1"></td>
+                                <td><input type="number" value="${r.max}" onchange="state.logisticsProviders[${pi}].rules[${ri}].max=+this.value" step="1"></td>
+                                <td><input type="number" value="${r.price}" onchange="state.logisticsProviders[${pi}].rules[${ri}].price=+this.value" step="0.01"></td>
+                                <td><button class="btn btn-outline btn-sm" onclick="state.logisticsProviders[${pi}].rules.splice(${ri},1);renderLogisticsProviders()">×</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <button class="btn btn-outline btn-sm" onclick="state.logisticsProviders[${pi}].rules.push({min:0,max:100,price:0});renderLogisticsProviders()" style="margin-top:4px">+ 区间</button>
+            </div>
+        `).join('');
+    }
+
+    function addProvider() {
+        state.logisticsProviders.push({ name: '新物流商', rules: [{ min: 0, max: 100, price: 0 }] });
+        renderLogisticsProviders();
+    }
+    function removeProvider(idx) {
+        state.logisticsProviders.splice(idx, 1);
+        renderLogisticsProviders();
+    }
+    function saveLogistics() {
+        state.logisticsProviders.forEach(p => p.rules.sort((a, b) => a.min - b.min));
+        renderLogisticsProviders();
+        showToast('物流规则已保存');
+        calcSingle();
+    }
+
+    // ============ 国际运费规则 ============
+    function renderIntlRates() {
+        $('intlRateBody').innerHTML = state.intlRates.map((r, i) => `
+            <tr>
+                <td><input type="number" value="${r.min}" onchange="state.intlRates[${i}].min=+this.value" step="1"></td>
+                <td><input type="number" value="${r.max}" onchange="state.intlRates[${i}].max=+this.value" step="1"></td>
+                <td><input type="number" value="${r.price}" onchange="state.intlRates[${i}].price=+this.value" step="0.01"></td>
+                <td><button class="btn btn-outline btn-sm" onclick="state.intlRates.splice(${i},1);renderIntlRates()">×</button></td>
+            </tr>
+        `).join('');
+    }
+    function addIntlRate() { state.intlRates.push({ min: 0, max: 200, price: 0 }); renderIntlRates(); }
+    function saveIntlRates() { state.intlRates.sort((a, b) => a.min - b.min); renderIntlRates(); showToast('国际运费规则已保存'); calcSingle(); }
+
+    // ============ 实时美元→人民币 ============
+    function onUsdInput(el) {
+        const usd = parseFloat(el.value) || 0;
+        const rate = val('exchangeRate') || 6.5;
+        const hint = $(el.id + 'Rmb');
+        if (hint) { hint.textContent = '¥' + fmt(usd * rate); hint.className = usd > 0 ? 'rmb-hint' : 'rmb-hint zero'; }
+    }
+
+    // ============ 单件计算 ============
+    function calcSingle() {
+        const appraisedPrice = val('sAppraisedPrice');
+        const discount = val('sDiscount');
+        const cost = val('sCost');
+        let quantity = Math.max(1, parseInt($('sQuantity').value) || 1);
+        const hasSubsidy = $('sHasSubsidy').checked;
+
+        // 限购
+        if (state.activityType === 'tool') {
+            const limit = parseInt($('purchaseLimit').value);
+            if (limit > 0 && quantity > limit) { $('sQuantity').value = limit; quantity = limit; }
+        }
+
+        let params = { appraisedPrice, discount, cost, quantity, hasSubsidy, imageCost: 0 };
+
+        if (state.mode === 'overseas') {
+            params.shippingUSD = val('sOverseasShipping');
+            params.imageCost = val('sImageCost');
+            onUsdInput($('sOverseasShipping'));
+        } else {
+            params.weight = val('sWeight');
+            params.imageCost = val('sImageCostD');
+            params.packFee = val('sPackFee');
+            params.firstMileBase = val('sFirstMileBase');
+            params.firstMileWeight = val('dFirstMileWeight') || 20;
+            params.deliveryFee = val('sDeliveryFee');
+            params.preListFee = val('sPreListFee');
+            const providerIdx = parseInt($('sLastMileProvider').value) || 0;
+            params.lastMileUSD = getLastMilePrice(providerIdx, params.weight) || 0;
+            $('sLastMilePrice').textContent = params.lastMileUSD > 0 ? `尾程: ${fmtUSD(params.lastMileUSD)} (${fmtCNY(params.lastMileUSD * (val('exchangeRate')||6.5))})` : '未匹配';
+            $('sLastMilePrice').style.color = params.lastMileUSD > 0 ? '#3b82f6' : '#ef4444';
+        }
+
+        $('subsidyDisplay').textContent = fmt(val('subsidyAmount'));
+
+        if (!appraisedPrice || !cost) { $('singleResult').style.display = 'none'; return; }
+
+        const r = calcProfit(params);
+        $('singleResult').style.display = 'block';
+
+        // 结果网格
+        $('resultGrid').innerHTML = `
+            <div class="result-item"><div class="val">${fmtUSD(r.transactionPrice)}</div><div class="desc">成交价</div></div>
+            <div class="result-item"><div class="val">${fmtUSD(r.salesAmount)}</div><div class="desc">销售额(含溢价)</div></div>
+            <div class="result-item"><div class="val ${r.hasSubsidy ? 'profit-positive' : 'profit-negative'}">${r.hasSubsidy ? fmtUSD(r.subsidyUSD) : '无'}</div><div class="desc">运补</div></div>
+            <div class="result-item"><div class="val">${fmtUSD(r.lastMileUSD)}</div><div class="desc">尾程运费</div></div>
+            <div class="result-item"><div class="val profit-positive">${fmtCNY(r.revenueCNY)}</div><div class="desc">总收入(¥)</div></div>
+            <div class="result-item"><div class="val profit-negative">${fmtCNY(r.totalCostCNY)}</div><div class="desc">总成本(¥)</div></div>
+            <div class="result-item"><div class="val ${r.preSaleProfit >= 0 ? 'profit-positive' : 'profit-negative'}">${fmtCNY(r.preSaleProfit)}</div><div class="desc">售前利润</div></div>
+            <div class="result-item"><div class="val ${r.afterSaleProfit >= 0 ? 'profit-positive' : 'profit-negative'}">${fmtCNY(r.afterSaleProfit)}</div><div class="desc">售后利润</div></div>
+            <div class="result-item"><div class="val ${r.profitMargin >= 0 ? 'profit-positive' : 'profit-negative'}">${fmt(r.profitMargin, 1)}%</div><div class="desc">利润率</div></div>
+            <div class="result-item"><div class="val ${r.perUnitProfit >= 0 ? 'profit-positive' : 'profit-negative'}">${fmtCNY(r.perUnitProfit)}</div><div class="desc">单件利润</div></div>
+        `;
+
+        // 成本明细
+        if (state.mode === 'domestic' && r.breakdown) {
+            const b = r.breakdown;
+            $('costBreakdown').innerHTML = `
+                <div style="font-weight:600;margin-bottom:6px">📋 到仓成本明细 (¥${fmt(r.warehouseCost)}/件)</div>
+                <div class="row"><span>采购成本</span><span>¥${fmt(b.cost)}</span></div>
+                <div class="row"><span>作图成本(分摊)</span><span>¥${fmt(b.imageCost)}</span></div>
+                <div class="row"><span>国际运费 (${fmt(b.intlRate)}$/kg × ${fmt(params.weight/1000)}kg)</span><span>$${fmt(b.intlShipping)} / ¥${fmt(b.intlShipping * gp().rate)}</span></div>
+                <div class="row"><span>国内打包费</span><span>¥${fmt(b.packFee)}</span></div>
+                <div class="row"><span>头程运费</span><span>¥${fmt(b.firstMile)}</span></div>
+                <div class="row"><span>海外投递</span><span>$${fmt(b.deliveryFee)} / ¥${fmt(b.deliveryFee * gp().rate)}</span></div>
+                <div class="row"><span>海外预上网</span><span>¥${fmt(b.preListFee)}</span></div>
+                <div class="row" style="border-top:2px solid #bae6fd;padding-top:4px"><span>尾程物流</span><span>$${fmt(r.lastMileUSD)} / ¥${fmt(r.lastMileUSD * gp().rate)}</span></div>
+            `;
+            $('costBreakdown').style.display = 'block';
+        } else if (state.mode === 'overseas') {
+            $('costBreakdown').innerHTML = `
+                <div class="row"><span>采购成本</span><span>¥${fmt(r.breakdown.cost)}</span></div>
+                <div class="row"><span>作图成本(分摊)</span><span>¥${fmt(r.breakdown.imageCost)}</span></div>
+                <div class="row"><span>运费</span><span>$${fmt(r.breakdown.shipping)} / ¥${fmt(r.breakdown.shippingRMB)}</span></div>
+                <div class="row" style="font-weight:700"><span>到仓成本合计</span><span>¥${fmt(r.warehouseCost)}/件</span></div>
+            `;
+            $('costBreakdown').style.display = 'block';
+        }
+    }
+
+    // ============ 反推 ============
+    function reverseCalc(type) {
+        const targetPre = val('sTargetPreProfit');
+        const targetAfter = val('sTargetAfterProfit');
+        const target = type === 'pre' ? targetPre : targetAfter;
+
+        if (!target && target !== 0) { $('reverseResult').style.display = 'none'; return; }
+
+        const cost = val('sCost');
+        const discount = val('sDiscount') || 100;
+        const quantity = Math.max(1, parseInt($('sQuantity').value) || 1);
+        const hasSubsidy = $('sHasSubsidy').checked;
+        const g = gp();
+
+        if (!cost) {
+            $('reverseResult').style.display = 'block';
+            $('reverseResult').className = 'reverse-result no-solution';
+            $('reverseResult').innerHTML = '⚠️ 请先输入采购成本';
+            return;
+        }
+
+        // 计算固定成本部分（不含成交价相关）
+        let fixedCostPerUnit, lastMileUSD;
+        if (state.mode === 'overseas') {
+            const shipUSD = val('sOverseasShipping');
+            const imgPerUnit = val('sImageCost') / quantity;
+            fixedCostPerUnit = cost + imgPerUnit + shipUSD * g.rate;
+            lastMileUSD = 0;
+        } else {
+            const weight = val('sWeight');
+            const weightKg = weight / 1000;
+            const intlRate = getIntlRate(weight) || 0;
+            const intlShippingUSD = weightKg * intlRate;
+            const packFee = val('sPackFee');
+            const fmBase = val('sFirstMileBase');
+            const fmWeight = val('dFirstMileWeight') || 20;
+            const firstMile = weight > 0 ? fmBase / (fmWeight / weight * 1000) : 0;
+            const deliveryFee = val('sDeliveryFee');
+            const preListFee = val('sPreListFee');
+            const imgPerUnit = val('sImageCostD') / quantity;
+            fixedCostPerUnit = cost + imgPerUnit + intlShippingUSD * g.rate + packFee + firstMile + deliveryFee * g.rate + preListFee;
+            const providerIdx = parseInt($('sLastMileProvider').value) || 0;
+            lastMileUSD = getLastMilePrice(providerIdx, weight) || 0;
+        }
+
+        // 售前利润 = (成交价 + 运补 - 尾程) × 汇率 - 到仓成本 × 件数
+        // 目标: preSaleProfit = target
+        // target = (P + subsidy - lastMile) × rate - fixedCost × qty
+        // P = (target + fixedCost × qty) / rate + lastMile - subsidy
+
+        // 先算无运补情况
+        let priceNoSubsidy = ((type === 'after' ? convertAfterToPre(target, fixedCostPerUnit, lastMileUSD, g) : target) + fixedCostPerUnit * quantity) / (g.rate * (discount / 100)) + lastMileUSD;
+
+        // 检查是否有运补
+        let result = '';
+
+        // 方案1: 无运补
+        const salesNoSubsidy = priceNoSubsidy * (discount / 100) * (1 + g.premium);
+        if (!hasSubsidy || salesNoSubsidy > g.threshold) {
+            result = buildReverseHTML(priceNoSubsidy, discount, g, quantity, false, target, fixedCostPerUnit, lastMileUSD, type);
+        }
+
+        // 方案2: 有运补
+        if (hasSubsidy) {
+            let targetPre = type === 'after' ? convertAfterToPre(target, fixedCostPerUnit, lastMileUSD, g) : target;
+            const priceWithSubsidy = (targetPre + fixedCostPerUnit * quantity) / (g.rate * (discount / 100)) + lastMileUSD - g.subsidy;
+            if (priceWithSubsidy > 0) {
+                const salesWithSubsidy = priceWithSubsidy * (discount / 100) * (1 + g.premium);
+                if (salesWithSubsidy <= g.threshold) {
+                    const r2 = buildReverseHTML(priceWithSubsidy, discount, g, quantity, true, target, fixedCostPerUnit, lastMileUSD, type);
+                    result = result ? result + '<div style="margin:8px 0;color:#64748b">—— 或 ——</div>' + r2 : r2;
+                } else if (!result) {
+                    // 有运补方案不满足门槛，降级为无运补
+                    result = buildReverseHTML(priceNoSubsidy, discount, g, quantity, false, target, fixedCostPerUnit, lastMileUSD, type);
+                }
+            }
+        }
+
+        if (!result) {
+            $('reverseResult').style.display = 'block';
+            $('reverseResult').className = 'reverse-result no-solution';
+            $('reverseResult').innerHTML = '⚠️ 无法计算，请检查参数';
+        } else {
+            $('reverseResult').style.display = 'block';
+            $('reverseResult').className = 'reverse-result';
+            $('reverseResult').innerHTML = result;
+        }
+    }
+
+    function convertAfterToPre(targetAfter, fixedCostPerUnit, lastMileUSD, g) {
+        // 售后利润 = (1-r)×售前 - r×(尾程+到仓)×件数
+        // 这里简化：反推时先忽略件数对售后公式的影响，用售前利润近似
+        // 售后利润 = (1-r)×售前利润 - r×(lastMile×rate + fixedCost)
+        const afterSaleLoss = (lastMileUSD * g.rate + fixedCostPerUnit);
+        // targetAfter = (1-r)*preProfit - r*afterSaleLoss
+        // preProfit = (targetAfter + r*afterSaleLoss) / (1-r)
+        if (g.afterSaleRate >= 1) return Infinity;
+        return (targetAfter + g.afterSaleRate * afterSaleLoss) / (1 - g.afterSaleRate);
+    }
+
+    function buildReverseHTML(appraised, discount, g, quantity, hasSub, target, fixedCost, lastMile, type) {
+        const tp = appraised * discount / 100;
+        const sales = tp * (1 + g.premium);
+        const subsidy = hasSub ? g.subsidy : 0;
+        const preProfit = (tp + subsidy - lastMile) * g.rate * quantity - fixedCost * quantity;
+        const afterLoss = (lastMile * g.rate + fixedCost);
+        const afterProfit = (1 - g.afterSaleRate) * preProfit - g.afterSaleRate * afterLoss * quantity;
+
+        return `
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:13px">
+                <div><strong>建议核价:</strong> <span style="font-size:18px;font-weight:700;color:#3b82f6">${fmtUSD(appraised)}</span></div>
+                <div>成交价: ${fmtUSD(tp)} (${discount}折)</div>
+                <div>销售额: ${fmtUSD(sales)}</div>
+                <div>运补: ${hasSub ? fmtUSD(subsidy) : '无'}</div>
+            </div>
+            <div style="margin-top:6px;font-size:12px;color:#64748b">
+                售前利润: ${fmtCNY(preProfit)} | 售后利润: ${fmtCNY(afterProfit)} | 目标(${type === 'pre' ? '售前' : '售后'}): ${fmtCNY(target)}
+            </div>
+        `;
+    }
+
+    // ============ 批量 ============
+    function importCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+            if (lines.length < 2) { showToast('CSV至少需要标题行+1行数据'); return; }
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+            const find = (...keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
+            const ni = find('品名','名称','name','sku');
+            const ci = find('成本','cost','采购');
+            const wi = find('克重','weight','重量');
+            const pi = find('核价','price','定价');
+            const di = find('折扣','discount');
+
+            state.batchData = [];
+            for (let i = 1; i < lines.length; i++) {
+                const c = lines[i].split(',').map(s => s.trim());
+                state.batchData.push({
+                    name: ni >= 0 ? c[ni] : `商品${i}`,
+                    cost: ci >= 0 ? parseFloat(c[ci]) || 0 : 0,
+                    weight: wi >= 0 ? parseFloat(c[wi]) || 0 : 0,
+                    appraisedPrice: pi >= 0 ? parseFloat(c[pi]) || 0 : 0,
+                    discount: di >= 0 ? parseFloat(c[di]) || 0 : 0,
+                    quantity: 1
+                });
+            }
+            renderBatchTable();
+            showToast(`已导入 ${state.batchData.length} 条`);
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function addBatchRow() { state.batchData.push({ name: '', cost: 0, weight: 0, appraisedPrice: 0, discount: 0, quantity: 1 }); renderBatchTable(); }
+    function clearBatch() { state.batchData = []; $('batchBody').innerHTML = ''; $('batchSummary').textContent = ''; }
+
+    function renderBatchTable() {
+        $('batchBody').innerHTML = state.batchData.map((r, i) => `
+            <tr>
+                <td><input value="${escHtml(r.name)}" onchange="state.batchData[${i}].name=this.value;recalcBatch()" style="width:70px"></td>
+                <td><input type="number" value="${r.cost}" onchange="state.batchData[${i}].cost=+this.value;recalcBatch()" step="0.01"></td>
+                <td><input type="number" value="${r.weight}" onchange="state.batchData[${i}].weight=+this.value;recalcBatch()" step="0.1"></td>
+                <td class="bc-${i}-wc">-</td>
+                <td><input type="number" value="${r.appraisedPrice||''}" onchange="state.batchData[${i}].appraisedPrice=+this.value;recalcBatch()" placeholder="全局" step="0.01"></td>
+                <td><input type="number" value="${r.discount||''}" onchange="state.batchData[${i}].discount=+this.value;recalcBatch()" placeholder="全局" step="1"></td>
+                <td><input type="number" value="${r.quantity}" onchange="state.batchData[${i}].quantity=+this.value;recalcBatch()" style="width:40px" min="1"></td>
+                <td class="bc-${i}-tp">-</td>
+                <td class="bc-${i}-sa">-</td>
+                <td class="bc-${i}-sub">-</td>
+                <td class="bc-${i}-lm">-</td>
+                <td class="bc-${i}-pp">-</td>
+                <td class="bc-${i}-ap">-</td>
+                <td class="bc-${i}-pm">-</td>
+            </tr>
+        `).join('');
+        recalcBatch();
+    }
+
+    function recalcBatch() {
+        const g = gp();
+        const globalPrice = val('bAppraisedPrice');
+        const globalDiscount = val('bDiscount') || 100;
+        const hasSubsidy = $('bHasSubsidy').checked;
+        const providerIdx = parseInt($('bLastMileProvider').value) || 0;
+
+        let totalPreProfit = 0, totalAfterProfit = 0, profitCnt = 0, lossCnt = 0;
+
+        state.batchData.forEach((row, i) => {
+            const price = row.appraisedPrice || globalPrice;
+            const discount = row.discount || globalDiscount;
+            if (!price || !row.cost) {
+                ['wc','tp','sa','sub','lm','pp','ap','pm'].forEach(c => { const el = document.querySelector(`.bc-${i}-${c}`); if(el) el.textContent='-'; });
+                return;
+            }
+
+            let params = { appraisedPrice: price, discount, cost: row.cost, quantity: row.quantity, hasSubsidy, imageCost: 0 };
+            let lastMileUSD = 0;
+
+            if (state.mode === 'domestic') {
+                params.weight = row.weight;
+                params.packFee = val('dPackFee');
+                params.firstMileBase = val('dFirstMileBase');
+                params.firstMileWeight = val('dFirstMileWeight') || 20;
+                params.deliveryFee = val('dDeliveryFee');
+                params.preListFee = val('dPreListFee');
+                lastMileUSD = getLastMilePrice(providerIdx, row.weight) || 0;
+                params.lastMileUSD = lastMileUSD;
+            } else {
+                params.shippingUSD = 0; // 批量模式下海外工厂需要用户自行填运费
+            }
+
+            const r = calcProfit(params);
+            const wc = r.warehouseCost;
+
+            document.querySelector(`.bc-${i}-wc`).textContent = fmt(wc);
+            document.querySelector(`.bc-${i}-tp`).textContent = fmtUSD(r.transactionPrice);
+            document.querySelector(`.bc-${i}-sa`).textContent = fmtUSD(r.salesAmount);
+            const subEl = document.querySelector(`.bc-${i}-sub`);
+            subEl.textContent = r.hasSubsidy ? fmtUSD(r.subsidyUSD) : '无';
+            subEl.style.color = r.hasSubsidy ? '#10b981' : '#94a3b8';
+            document.querySelector(`.bc-${i}-lm`).textContent = state.mode === 'domestic' ? fmtUSD(lastMileUSD) : '-';
+            const ppEl = document.querySelector(`.bc-${i}-pp`);
+            ppEl.textContent = fmtCNY(r.preSaleProfit);
+            ppEl.style.color = r.preSaleProfit >= 0 ? '#10b981' : '#ef4444';
+            ppEl.style.fontWeight = '600';
+            const apEl = document.querySelector(`.bc-${i}-ap`);
+            apEl.textContent = fmtCNY(r.afterSaleProfit);
+            apEl.style.color = r.afterSaleProfit >= 0 ? '#10b981' : '#ef4444';
+            const pmEl = document.querySelector(`.bc-${i}-pm`);
+            pmEl.textContent = fmt(r.profitMargin, 1) + '%';
+            pmEl.style.color = r.profitMargin >= 0 ? '#10b981' : '#ef4444';
+
+            totalPreProfit += r.preSaleProfit;
+            totalAfterProfit += r.afterSaleProfit;
+            if (r.preSaleProfit >= 0) profitCnt++; else lossCnt++;
+        });
+
+        $('batchSummary').innerHTML = `共 ${state.batchData.length} 件 | <span style="color:#10b981">盈利: ${profitCnt}</span> | <span style="color:#ef4444">亏损: ${lossCnt}</span> | 总售前利润: <strong style="color:${totalPreProfit>=0?'#10b981':'#ef4444'}">${fmtCNY(totalPreProfit)}</strong> | 总售后利润: <strong style="color:${totalAfterProfit>=0?'#10b981':'#ef4444'}">${fmtCNY(totalAfterProfit)}</strong>`;
+    }
+
+    function exportBatch() {
+        if (!state.batchData.length) { showToast('暂无数据'); return; }
+        const g = gp();
+        const globalPrice = val('bAppraisedPrice');
+        const globalDiscount = val('bDiscount') || 100;
+        const hasSubsidy = $('bHasSubsidy').checked;
+        const providerIdx = parseInt($('bLastMileProvider').value) || 0;
+
+        let text = '品名\t成本¥\t克重g\t到仓¥\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$\t售前利润¥\t售后利润¥\t利润率\n';
+        state.batchData.forEach(row => {
+            const price = row.appraisedPrice || globalPrice;
+            const discount = row.discount || globalDiscount;
+            if (!price || !row.cost) return;
+            let params = { appraisedPrice: price, discount, cost: row.cost, quantity: row.quantity, hasSubsidy, imageCost: 0 };
+            if (state.mode === 'domestic') {
+                params.weight = row.weight; params.packFee = val('dPackFee'); params.firstMileBase = val('dFirstMileBase');
+                params.firstMileWeight = val('dFirstMileWeight') || 20; params.deliveryFee = val('dDeliveryFee'); params.preListFee = val('dPreListFee');
+                params.lastMileUSD = getLastMilePrice(providerIdx, row.weight) || 0;
+            }
+            const r = calcProfit(params);
+            text += `${row.name}\t${row.cost}\t${row.weight}\t${fmt(r.warehouseCost)}\t${fmt(price)}\t${discount}\t${row.quantity}\t${fmt(r.transactionPrice)}\t${fmt(r.salesAmount)}\t${r.hasSubsidy?fmt(r.subsidyUSD):'0'}\t${state.mode==='domestic'?fmt(params.lastMileUSD||0):'0'}\t${fmt(r.preSaleProfit)}\t${fmt(r.afterSaleProfit)}\t${fmt(r.profitMargin,1)}%\n`;
+        });
+        const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        showToast('已复制到剪贴板');
+    }
+
+    function exportBatchCSV() {
+        if (!state.batchData.length) { showToast('暂无数据'); return; }
+        const g = gp();
+        const globalPrice = val('bAppraisedPrice');
+        const globalDiscount = val('bDiscount') || 100;
+        const hasSubsidy = $('bHasSubsidy').checked;
+        const providerIdx = parseInt($('bLastMileProvider').value) || 0;
+
+        let csv = '\uFEFF品名,成本¥,克重g,到仓成本¥,核价$,折扣%,件数,成交价$,销售额$,运补$,尾程$,售前利润¥,售后利润¥,利润率%\n';
+        state.batchData.forEach(row => {
+            const price = row.appraisedPrice || globalPrice;
+            const discount = row.discount || globalDiscount;
+            if (!price || !row.cost) return;
+            let params = { appraisedPrice: price, discount, cost: row.cost, quantity: row.quantity, hasSubsidy, imageCost: 0 };
+            if (state.mode === 'domestic') {
+                params.weight = row.weight; params.packFee = val('dPackFee'); params.firstMileBase = val('dFirstMileBase');
+                params.firstMileWeight = val('dFirstMileWeight') || 20; params.deliveryFee = val('dDeliveryFee'); params.preListFee = val('dPreListFee');
+                params.lastMileUSD = getLastMilePrice(providerIdx, row.weight) || 0;
+            }
+            const r = calcProfit(params);
+            csv += `"${row.name}",${row.cost},${row.weight},${fmt(r.warehouseCost)},${fmt(price)},${discount},${row.quantity},${fmt(r.transactionPrice)},${fmt(r.salesAmount)},${r.hasSubsidy?fmt(r.subsidyUSD):0},${state.mode==='domestic'?fmt(params.lastMileUSD||0):0},${fmt(r.preSaleProfit)},${fmt(r.afterSaleProfit)},${fmt(r.profitMargin,1)}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `利润计算_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+        showToast('已导出CSV');
+    }
+
+    // ============ Tab ============
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        $(`tab-${tab}`).classList.add('active');
+        const labels = { batch: '批量', logistics: '物流', domesticParams: '固定' };
+        document.querySelectorAll('.tab-bar button').forEach(b => {
+            if (b.textContent.includes(labels[tab])) b.classList.add('active');
+        });
+    }
+
+    function recalcAll() { calcSingle(); recalcBatch(); }
+
+    // ============ 初始化 ============
+    renderLogisticsProviders();
+    renderIntlRates();
+    </script>
+</body>
+</html>
