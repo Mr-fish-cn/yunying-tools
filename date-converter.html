@@ -135,7 +135,7 @@ Apr 25, 2026
         }
 
         // 格式2: 2026-Apr-25 14:49
-        m = str.match(/^(\d{4})[-\/]([A-Za-z]+)[-(\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        m = str.match(/^(\d{4})[-\/]([A-Za-z]+)[-\s](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
         if (m) {
             year = parseInt(m[1]); month = parseMonth(m[2]); day = parseInt(m[3]);
             if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
@@ -180,6 +180,19 @@ Apr 25, 2026
 
         // 格式7: 25/04/2026 (日/月/年 - 欧式，只有当第一列>12时才能区分)
         // 这里不做处理，避免与美式混淆
+
+        // 兜底: 尝试原生 Date 解析
+        const nativeDate = new Date(str);
+        if (!isNaN(nativeDate.getTime())) {
+            return {
+                year: nativeDate.getFullYear(),
+                month: nativeDate.getMonth() + 1,
+                day: nativeDate.getDate(),
+                hour: nativeDate.getHours(),
+                minute: nativeDate.getMinutes(),
+                second: nativeDate.getSeconds()
+            };
+        }
 
         return null;
     }
