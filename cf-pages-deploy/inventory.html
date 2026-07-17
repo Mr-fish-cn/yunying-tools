@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海外仓库存计算器</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --success-light: #dcfce7;
+            --warning: #ea580c;
+            --warning-light: #fff7ed;
+            --danger: #dc2626;
+            --danger-light: #fef2f2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 20px 24px;
+            box-shadow: var(--shadow-md);
+        }
+        .header h1 { font-size: 22px; font-weight: 700; }
+        .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--card);
+            padding: 6px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 10px 18px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .tab:hover { background: var(--bg); color: var(--text); }
+        .tab.active { background: var(--primary); color: white; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .icon { font-size: 18px; }
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .form-group input, .form-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            background: white;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-outline {
+            background: white;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-outline:hover { background: var(--primary-light); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #f8fafc;
+        }
+        tr:hover td { background: #f8fafc; }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: var(--success-light); color: var(--success); }
+        .badge-warning { background: var(--warning-light); color: var(--warning); }
+        .badge-danger { background: var(--danger-light); color: var(--danger); }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+        .stat-card.warning { border-left-color: var(--warning); }
+        .stat-card.danger { border-left-color: var(--danger); }
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+        .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+        .stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .analytics-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .analytics-sku { font-weight: 600; font-size: 15px; }
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+        }
+        .analytics-item {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .analytics-item .label { font-size: 11px; color: var(--text-secondary); }
+        .analytics-item .value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .restock-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .restock-needed { background: var(--danger-light); color: var(--danger); }
+        .restock-ok { background: var(--success-light); color: var(--success); }
+        .op-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .op-create { background: #dbeafe; color: #2563eb; }
+        .op-delete { background: #fef2f2; color: #dc2626; }
+        .op-inbound { background: #dcfce7; color: #16a34a; }
+        .op-outbound { background: #fff7ed; color: #ea580c; }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            width: 200px;
+        }
+        .search-input:focus { border-color: var(--primary); }
+        .confirm-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .confirm-overlay.show { display: flex; }
+        .confirm-box {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .confirm-box h3 { font-size: 16px; margin-bottom: 8px; }
+        .confirm-box p { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+        .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            background: white;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .settings-row label { font-size: 14px; font-weight: 500; }
+        .settings-row input {
+            width: 80px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .form-row { flex-direction: column; }
+            .form-group { width: 100%; }
+            .form-group input, .form-group select { width: 100%; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .analytics-grid { grid-template-columns: repeat(2, 1fr); }
+            .tabs { padding: 4px; }
+            .tab { padding: 8px 12px; font-size: 13px; }
+            table { font-size: 12px; }
+            th, td { padding: 8px 6px; }
+        }
+        .table-wrap { overflow-x: auto; }
+        .note-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 2000;
+            transform: translateX(120%);
+            transition: transform 0.3s;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.info { background: var(--primary); }
+        
+        /* 云同步状态 */
+        .sync-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 12px;
+            vertical-align: middle;
+        }
+        .sync-status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .sync-status.syncing { background: #fef3c7; color: #92400e; }
+        .sync-status.syncing::before { background: #f59e0b; animation: pulse 1s infinite; }
+        .sync-status.synced { background: var(--success-light); color: var(--success); }
+        .sync-status.synced::before { background: var(--success); }
+        .sync-status.error { background: var(--danger-light); color: var(--danger); }
+        .sync-status.error::before { background: var(--danger); }
+        .sync-status.local { background: #e0e7ff; color: #3730a3; }
+        .sync-status.local::before { background: #6366f1; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        /* 同步配置面板 */
+        .sync-config-panel {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+        .sync-config-panel .form-row {
+            margin-bottom: 12px;
+        }
+        .sync-config-panel .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .sync-config-panel input[type="text"],
+        .sync-config-panel input[type="password"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .sync-config-panel .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sync-config-panel button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .sync-config-panel .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .sync-config-panel .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📦 海外仓库存计算器 <span id="sync-status" class="sync-status local"><span class="sync-text">未连接</span></span></h1>
+        <p>管理SKU、入库出库记录、智能补货分析 · 云同步版</p>
+    </div>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('sku')">SKU管理</button>
+            <button class="tab" onclick="switchTab('inbound')">入库记录</button>
+            <button class="tab" onclick="switchTab('outbound')">出库记录</button>
+            <button class="tab" onclick="switchTab('analytics')">数据分析</button>
+            <button class="tab" onclick="switchTab('history')">操作历史</button>
+            <button class="tab" onclick="switchTab('settings')">设置</button>
+        </div>
+
+        <!-- SKU管理 -->
+        <div id="panel-sku" class="panel active">
+            <div class="card">
+                <div class="card-title"><span class="icon">🏷️</span> 创建SKU</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SKU编码</label>
+                        <input type="text" id="sku-code" placeholder="如: SKU-001">
+                    </div>
+                    <div class="form-group">
+                        <label>产品名称</label>
+                        <input type="text" id="sku-name" placeholder="如: 黑色T恤 M码">
+                    </div>
+                    <div class="form-group">
+                        <label>备注（可选）</label>
+                        <input type="text" id="sku-note" placeholder="如: 供应商A">
+                    </div>
+                    <button class="btn btn-primary" onclick="createSKU()">添加SKU</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="toolbar">
+                    <div class="card-title" style="margin-bottom:0"><span class="icon">📋</span> SKU列表</div>
+                    <input type="text" class="search-input" placeholder="搜索SKU..." oninput="renderSKUList(this.value)">
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SKU编码</th>
+                                <th>产品名称</th>
+                                <th>备注</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sku-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="sku-empty" class="empty-state" style="display:none">
+                    <div class="icon">📦</div>
+                    <p>还没有SKU，点击上方添加第一个</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 入库记录 -->
+        <div id="panel-inbound" class="panel">
+            <div class="card">
+                <div class="card-title"><span class="icon">📥</span> 添加入库记录</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>选择SKU</label>
+                        <select id="inbound-sku"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>入库数量</label>
+                        <input type="number" id="inbound-qty" placeholder="数量" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>入库日期</label>
+                        <input type="date" id="inbound-date">
+                    </div>
+                    <button class="btn btn-success" onclick="addInbound()">添加入库</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="toolbar">
+                    <div class="card-title" style="margin-bottom:0"><span class="icon">📋</span> 入库记录</div>
+                    <div style="display:flex;gap:8px">
+                        <select class="filter-select" id="inbound-filter" onchange="renderInboundTable()">
+                            <option value="all">全部SKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>SKU编码</th>
+                                <th>产品名称</th>
+                                <th>入库数量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inbound-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="inbound-empty" class="empty-state" style="display:none">
+                    <div class="icon">📥</div>
+                    <p>暂无入库记录</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 出库记录 -->
+        <div id="panel-outbound" class="panel">
+            <div class="card">
+                <div class="card-title"><span class="icon">📤</span> 添加出库记录</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>选择SKU</label>
+                        <select id="outbound-sku"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>出库数量</label>
+                        <input type="number" id="outbound-qty" placeholder="数量" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>出库日期</label>
+                        <input type="date" id="outbound-date">
+                    </div>
+                    <button class="btn btn-primary" onclick="addOutbound()">添加出库</button>
+                </div>
+                <p class="note-text">💡 同一SKU同一天多次出库会自动合并计算</p>
+            </div>
+            <div class="card">
+                <div class="toolbar">
+                    <div class="card-title" style="margin-bottom:0"><span class="icon">📋</span> 出库记录</div>
+                    <div style="display:flex;gap:8px">
+                        <select class="filter-select" id="outbound-filter" onchange="renderOutboundTable()">
+                            <option value="all">全部SKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>SKU编码</th>
+                                <th>产品名称</th>
+                                <th>出库数量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outbound-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="outbound-empty" class="empty-state" style="display:none">
+                    <div class="icon">📤</div>
+                    <p>暂无出库记录</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据分析 -->
+        <div id="panel-analytics" class="panel">
+            <div id="analytics-summary" class="stats-grid"></div>
+            <div class="card">
+                <div class="toolbar">
+                    <div class="card-title" style="margin-bottom:0"><span class="icon">📊</span> 各SKU库存分析</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <label style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">统计天数</label>
+                        <input type="number" id="batch-days-input" min="1" max="3650" placeholder="自动" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">
+                        <button class="btn btn-outline" onclick="batchSetManualDays()" style="font-size:12px;padding:4px 12px;">应用</button>
+                        <button class="btn btn-outline" onclick="clearAllManualDays()" style="font-size:12px;padding:4px 12px;">恢复</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <label style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">补货目标</label>
+                        <input type="number" id="batch-target-input" min="1" max="3650" placeholder="全局" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">
+                        <button class="btn btn-outline" onclick="batchSetTargetDays()" style="font-size:12px;padding:4px 12px;">应用</button>
+                        <button class="btn btn-outline" onclick="clearAllTargetDays()" style="font-size:12px;padding:4px 12px;">恢复</button>
+                    </div>
+                    <button class="btn btn-success" onclick="exportExcel()">📊 导出Excel</button>
+                </div>
+                <div id="analytics-cards"></div>
+                <div id="analytics-empty" class="empty-state" style="display:none">
+                    <div class="icon">📊</div>
+                    <p>暂无数据，请先添加SKU和入库/出库记录</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作历史 -->
+        <div id="panel-history" class="panel">
+            <div class="card">
+                <div class="toolbar">
+                    <div class="card-title" style="margin-bottom:0"><span class="icon">📝</span> 操作历史记录</div>
+                    <button class="btn btn-outline" onclick="exportHistory()">导出历史</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>操作类型</th>
+                                <th>详情</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="history-empty" class="empty-state" style="display:none">
+                    <div class="icon">📝</div>
+                    <p>暂无操作记录</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置 -->
+        <div id="panel-settings" class="panel">
+            <div class="card">
+                <div class="card-title"><span class="icon">☁️</span> 云同步设置</div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2">
+                        <label>API 地址</label>
+                        <input type="text" id="sync-api-url" placeholder="https://data-sync.xjyybdz.workers.dev">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>API 密钥</label>
+                        <input type="password" id="sync-api-key" placeholder="输入密钥">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="sync-auto" checked>
+                            <label for="sync-auto">自动同步（每5秒检查更新）</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <button class="btn btn-primary btn-sm" onclick="saveSyncSettings()">保存配置</button>
+                    <button class="btn btn-outline btn-sm" onclick="doSync()">立即同步</button>
+                    <button class="btn btn-outline btn-sm" onclick="testSync()">测试连接</button>
+                </div>
+                <p class="note-text">配置保存后，数据会自动同步到云端，多人可同时使用</p>
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="icon">⚙️</span> 补货天数设置</div>
+                <div class="settings-row">
+                    <label>目标补货天数：</label>
+                    <input type="number" id="target-days" min="1" max="365" value="12">
+                    <span class="note-text">天</span>
+                    <button class="btn btn-primary btn-sm" onclick="saveTargetDays()">保存</button>
+                </div>
+                <p class="note-text">系统会根据此天数计算每个SKU需要补充的库存量</p>
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="icon">💾</span> 数据管理</div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap">
+                    <button class="btn btn-outline" onclick="exportAllData()">📦 导出全部数据(JSON)</button>
+                    <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">📂 导入数据(JSON)</button>
+                    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+                    <button class="btn btn-danger" onclick="confirmClearAll()">🗑️ 清空所有数据</button>
+                </div>
+                <p class="note-text" style="margin-top:12px">建议定期导出数据进行备份</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div id="confirm-overlay" class="confirm-overlay">
+        <div class="confirm-box">
+            <h3 id="confirm-title">确认操作</h3>
+            <p id="confirm-msg">确定要执行此操作吗？</p>
+            <div class="confirm-actions">
+                <button class="btn btn-outline btn-sm" onclick="hideConfirm()">取消</button>
+                <button class="btn btn-danger btn-sm" id="confirm-btn" onclick="">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+    // ========== 云同步配置 ==========
+    const NAMESPACE = 'warehouse_inventory';
+    const DATA_KEY = 'main';
+    const SYNC_CONFIG_KEY = 'warehouse_sync_config';
+    
+    // 默认配置（用户可以在界面中修改）
+    const DEFAULT_CONFIG = {
+        apiUrl: 'https://data-sync.xjyybdz.workers.dev',
+        apiKey: 'mypass2026xyz',
+        autoSync: true,
+        syncInterval: 5000 // 5秒轮询
+    };
+    
+    let syncConfig = { ...DEFAULT_CONFIG };
+    let localVersion = 0;
+    let isSyncing = false;
+    let syncTimer = null;
+    let lastSyncTime = null;
+    
+    // ========== 状态管理 ==========
+    const STORAGE_KEY = 'warehouse_inventory_v1';
+    let state = {
+        skus: [],
+        inboundRecords: [],
+        outboundRecords: [],
+        operationLog: [],
+        targetDays: 12
+    };
+
+    // ========== 云同步函数 ==========
+    function loadSyncConfig() {
+        try {
+            const saved = localStorage.getItem(SYNC_CONFIG_KEY);
+            if (saved) {
+                syncConfig = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+            }
+        } catch(e) { console.error('Load sync config error:', e); }
+    }
+    
+    function saveSyncConfig() {
+        try {
+            localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(syncConfig));
+        } catch(e) { console.error('Save sync config error:', e); }
+    }
+    
+    async function syncGet() {
+        if (!syncConfig.apiUrl || !syncConfig.apiKey) return null;
+        try {
+            const url = `${syncConfig.apiUrl}/api/get?namespace=${NAMESPACE}&key=${DATA_KEY}`;
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${syncConfig.apiKey}` }
+            });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data;
+        } catch(e) {
+            console.error('Sync get error:', e);
+            return null;
+        }
+    }
+    
+    async function syncSet(data) {
+        if (!syncConfig.apiUrl || !syncConfig.apiKey) return false;
+        try {
+            const url = `${syncConfig.apiUrl}/api/set`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${syncConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    namespace: NAMESPACE,
+                    key: DATA_KEY,
+                    data: data
+                })
+            });
+            if (!res.ok) return false;
+            const result = await res.json();
+            localVersion = result.version || 0;
+            return true;
+        } catch(e) {
+            console.error('Sync set error:', e);
+            return false;
+        }
+    }
+    
+    async function syncCheck() {
+        if (!syncConfig.apiUrl || !syncConfig.apiKey) return false;
+        try {
+            const url = `${syncConfig.apiUrl}/api/check?namespace=${NAMESPACE}&key=${DATA_KEY}&version=${localVersion}`;
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${syncConfig.apiKey}` }
+            });
+            if (!res.ok) return false;
+            const data = await res.json();
+            return data;
+        } catch(e) {
+            console.error('Sync check error:', e);
+            return false;
+        }
+    }
+    
+    function updateSyncStatus(status, message) {
+        const indicator = document.getElementById('sync-status');
+        if (!indicator) return;
+        indicator.className = 'sync-status ' + status;
+        const text = indicator.querySelector('.sync-text');
+        if (text) {
+            if (message) {
+                text.textContent = message;
+            } else if (status === 'syncing') {
+                text.textContent = '同步中...';
+            } else if (status === 'synced') {
+                text.textContent = lastSyncTime ? `已同步 ${new Date(lastSyncTime).toLocaleTimeString('zh-CN')}` : '已同步';
+            } else if (status === 'error') {
+                text.textContent = '同步失败';
+            } else {
+                text.textContent = '未连接';
+            }
+        }
+    }
+    
+    async function doSync() {
+        if (isSyncing) return;
+        isSyncing = true;
+        updateSyncStatus('syncing');
+        
+        try {
+            // 先检查云端是否有更新
+            const checkResult = await syncCheck();
+            if (checkResult && checkResult.changed && checkResult.data) {
+                // 云端有更新，拉取数据
+                state = { ...state, ...checkResult.data };
+                localVersion = checkResult.version;
+                // 同时保存到本地localStorage作为缓存
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+                renderAll();
+                updateSyncStatus('synced');
+            } else if (checkResult) {
+                // 没有更新，但同步成功
+                updateSyncStatus('synced');
+            } else {
+                // 检查失败
+                updateSyncStatus('error');
+            }
+        } catch(e) {
+            console.error('Sync error:', e);
+            updateSyncStatus('error');
+        } finally {
+            isSyncing = false;
+            lastSyncTime = Date.now();
+        }
+    }
+    
+    async function pushToCloud() {
+        if (isSyncing || !syncConfig.autoSync) return;
+        isSyncing = true;
+        updateSyncStatus('syncing');
+        
+        try {
+            const success = await syncSet(state);
+            if (success) {
+                updateSyncStatus('synced');
+            } else {
+                updateSyncStatus('error');
+            }
+        } catch(e) {
+            console.error('Push error:', e);
+            updateSyncStatus('error');
+        } finally {
+            isSyncing = false;
+            lastSyncTime = Date.now();
+        }
+    }
+    
+    function startAutoSync() {
+        if (syncTimer) clearInterval(syncTimer);
+        if (syncConfig.autoSync && syncConfig.apiUrl && syncConfig.apiKey) {
+            syncTimer = setInterval(doSync, syncConfig.syncInterval);
+        }
+    }
+    
+    function stopAutoSync() {
+        if (syncTimer) {
+            clearInterval(syncTimer);
+            syncTimer = null;
+        }
+    }
+    
+    function saveSyncSettings() {
+        syncConfig.apiUrl = document.getElementById('sync-api-url').value.trim();
+        syncConfig.apiKey = document.getElementById('sync-api-key').value.trim();
+        syncConfig.autoSync = document.getElementById('sync-auto').checked;
+        saveSyncConfig();
+        
+        // 重启自动同步
+        stopAutoSync();
+        if (syncConfig.autoSync && syncConfig.apiUrl && syncConfig.apiKey) {
+            startAutoSync();
+            showToast('配置已保存，自动同步已开启');
+        } else {
+            showToast('配置已保存');
+        }
+    }
+    
+    async function testSync() {
+        const apiUrl = document.getElementById('sync-api-url').value.trim();
+        const apiKey = document.getElementById('sync-api-key').value.trim();
+        
+        if (!apiUrl || !apiKey) {
+            showToast('请先填写API地址和密钥', 'error');
+            return;
+        }
+        
+        updateSyncStatus('syncing', '测试中...');
+        
+        try {
+            const url = `${apiUrl}/health`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast('连接成功！', 'success');
+                    updateSyncStatus('synced', '连接正常');
+                } else {
+                    showToast('服务异常', 'error');
+                    updateSyncStatus('error', '服务异常');
+                }
+            } else {
+                showToast('连接失败：' + res.status, 'error');
+                updateSyncStatus('error', '连接失败');
+            }
+        } catch(e) {
+            showToast('连接失败：' + e.message, 'error');
+            updateSyncStatus('error', '连接失败');
+        }
+    }
+    
+    // ========== 状态管理 ==========
+    async function loadState() {
+        try {
+            // 先尝试从云端加载
+            if (syncConfig.apiUrl && syncConfig.apiKey) {
+                updateSyncStatus('syncing', '加载中...');
+                const cloudData = await syncGet();
+                if (cloudData && cloudData.data) {
+                    state = { ...state, ...cloudData.data };
+                    localVersion = cloudData.version || 0;
+                    // 同时保存到本地localStorage作为缓存
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+                    updateSyncStatus('synced');
+                    return;
+                }
+            }
+            // 云端没有数据，从本地加载
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state = { ...state, ...parsed };
+            }
+            updateSyncStatus('local');
+        } catch(e) { 
+            console.error('Load state error:', e);
+            // 出错时尝试从本地加载
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    state = { ...state, ...JSON.parse(saved) };
+                }
+            } catch(e2) {}
+            updateSyncStatus('error');
+        }
+    }
+
+    async function saveState() {
+        try {
+            // 先保存到本地
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            // 再推送到云端
+            if (syncConfig.autoSync && syncConfig.apiUrl && syncConfig.apiKey) {
+                pushToCloud();
+            }
+        } catch(e) { 
+            console.error('Save state error:', e);
+        }
+    }
+
+    function genId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+    }
+
+    function today() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    function formatDateTime(ts) {
+        const d = new Date(ts);
+        return d.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    }
+
+    // ========== 工具函数 ==========
+    function showToast(msg, type='success') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast ' + type + ' show';
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    let confirmCallback = null;
+    function showConfirm(title, msg, callback) {
+        document.getElementById('confirm-title').textContent = title;
+        document.getElementById('confirm-msg').textContent = msg;
+        document.getElementById('confirm-overlay').classList.add('show');
+        confirmCallback = callback;
+        document.getElementById('confirm-btn').onclick = () => { const cb = confirmCallback; hideConfirm(); if(cb) cb(); };
+    }
+    function hideConfirm() {
+        document.getElementById('confirm-overlay').classList.remove('show');
+        confirmCallback = null;
+    }
+
+    function addLog(type, detail) {
+        state.operationLog.unshift({ id: genId(), type, detail, timestamp: Date.now() });
+        // Keep only last 500 records
+        if (state.operationLog.length > 500) state.operationLog = state.operationLog.slice(0, 500);
+    }
+
+    // ========== Tab切换 ==========
+    function switchTab(name) {
+        document.querySelectorAll('.tab').forEach((t,i) => {
+            t.classList.toggle('active', t.textContent.includes(
+                name==='sku'?'SKU':name==='inbound'?'入库':name==='outbound'?'出库':name==='analytics'?'分析':name==='history'?'历史':'设置'
+            ));
+        });
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-'+name).classList.add('active');
+        // Refresh data on tab switch
+        if (name==='inbound') { refreshSKUSelects(); renderInboundTable(); }
+        if (name==='outbound') { refreshSKUSelects(); renderOutboundTable(); }
+        if (name==='analytics') renderAnalytics();
+        if (name==='history') renderHistory();
+        if (name==='settings') document.getElementById('target-days').value = state.targetDays;
+    }
+
+    // ========== SKU管理 ==========
+    function createSKU() {
+        const code = document.getElementById('sku-code').value.trim();
+        const name = document.getElementById('sku-name').value.trim();
+        const note = document.getElementById('sku-note').value.trim();
+        if (!code) { showToast('请输入SKU编码', 'error'); return; }
+        if (!name) { showToast('请输入产品名称', 'error'); return; }
+        if (state.skus.find(s => s.code === code)) { showToast('SKU编码已存在', 'error'); return; }
+        const sku = { id: genId(), code, name, note, createdAt: Date.now() };
+        state.skus.push(sku);
+        addLog('create_sku', `创建SKU: ${code} - ${name}`);
+        saveState();
+        renderSKUList();
+        document.getElementById('sku-code').value = '';
+        document.getElementById('sku-name').value = '';
+        document.getElementById('sku-note').value = '';
+        showToast(`SKU「${name}」创建成功`);
+    }
+
+    function renderSKUList(keyword='') {
+        const tbody = document.getElementById('sku-table-body');
+        const empty = document.getElementById('sku-empty');
+        let list = state.skus;
+        if (keyword) {
+            const kw = keyword.toLowerCase();
+            list = list.filter(s => s.code.toLowerCase().includes(kw) || s.name.toLowerCase().includes(kw) || (s.note||'').toLowerCase().includes(kw));
+        }
+        if (list.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        tbody.innerHTML = list.map(s => `
+            <tr>
+                <td><strong>${esc(s.code)}</strong></td>
+                <td>${esc(s.name)}</td>
+                <td style="color:var(--text-secondary)">${esc(s.note||'-')}</td>
+                <td style="color:var(--text-secondary)">${formatDateTime(s.createdAt)}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="deleteSKU('${s.id}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function deleteSKU(id) {
+        const sku = state.skus.find(s => s.id === id);
+        if (!sku) return;
+        const inCount = state.inboundRecords.filter(r => r.skuId === id).length;
+        const outCount = state.outboundRecords.filter(r => r.skuId === id).length;
+        const msg = `确定删除SKU「${sku.code} - ${sku.name}」吗？\n相关入库记录${inCount}条、出库记录${outCount}条也将一并删除。此操作不可恢复。`;
+        showConfirm('删除SKU', msg, () => {
+            state.skus = state.skus.filter(s => s.id !== id);
+            state.inboundRecords = state.inboundRecords.filter(r => r.skuId !== id);
+            state.outboundRecords = state.outboundRecords.filter(r => r.skuId !== id);
+            addLog('delete_sku', `删除SKU: ${sku.code} - ${sku.name}（含${inCount}条入库、${outCount}条出库）`);
+            saveState();
+            renderSKUList();
+            showToast('SKU已删除');
+        });
+    }
+
+    // ========== 入库记录 ==========
+    function addInbound() {
+        const skuId = document.getElementById('inbound-sku').value;
+        const qty = parseInt(document.getElementById('inbound-qty').value);
+        const date = document.getElementById('inbound-date').value;
+        if (!skuId) { showToast('请选择SKU', 'error'); return; }
+        if (!qty || qty <= 0) { showToast('请输入有效数量', 'error'); return; }
+        if (!date) { showToast('请选择日期', 'error'); return; }
+        const sku = state.skus.find(s => s.id === skuId);
+        const record = { id: genId(), skuId, quantity: qty, date, createdAt: Date.now() };
+        state.inboundRecords.push(record);
+        addLog('inbound', `入库: ${sku.code} - ${sku.name}, 数量${qty}, 日期${date}`);
+        saveState();
+        renderInboundTable();
+        document.getElementById('inbound-qty').value = '';
+        showToast(`入库成功：${sku.name} × ${qty}`);
+    }
+
+    function renderInboundTable() {
+        const tbody = document.getElementById('inbound-table-body');
+        const empty = document.getElementById('inbound-empty');
+        const filter = document.getElementById('inbound-filter').value;
+        // Update filter options
+        const filterSel = document.getElementById('inbound-filter');
+        const currentVal = filterSel.value;
+        let opts = '<option value="all">全部SKU</option>';
+        state.skus.forEach(s => { opts += `<option value="${s.id}">${esc(s.code)} - ${esc(s.name)}</option>`; });
+        filterSel.innerHTML = opts;
+        filterSel.value = currentVal || 'all';
+
+        let list = [...state.inboundRecords].sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+        if (filter !== 'all') list = list.filter(r => r.skuId === filter);
+        if (list.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        tbody.innerHTML = list.map(r => {
+            const sku = state.skus.find(s => s.id === r.skuId);
+            if (!sku) return '';
+            return `<tr>
+                <td>${r.date}</td>
+                <td><strong>${esc(sku.code)}</strong></td>
+                <td>${esc(sku.name)}</td>
+                <td><strong style="color:var(--success)">+${r.quantity}</strong></td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteInbound('${r.id}')">删除</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function deleteInbound(id) {
+        const record = state.inboundRecords.find(r => r.id === id);
+        if (!record) return;
+        const sku = state.skus.find(s => s.id === record.skuId);
+        showConfirm('删除入库记录', `确定删除此入库记录吗？(${sku?sku.code:'?'} × ${record.quantity}, ${record.date})`, () => {
+            state.inboundRecords = state.inboundRecords.filter(r => r.id !== id);
+            addLog('delete_inbound', `删除入库: ${sku?sku.code:'?'} × ${record.quantity}, 日期${record.date}`);
+            saveState();
+            renderInboundTable();
+            showToast('入库记录已删除');
+        });
+    }
+
+    // ========== 出库记录 ==========
+    function addOutbound() {
+        const skuId = document.getElementById('outbound-sku').value;
+        const qty = parseInt(document.getElementById('outbound-qty').value);
+        const date = document.getElementById('outbound-date').value;
+        if (!skuId) { showToast('请选择SKU', 'error'); return; }
+        if (!qty || qty <= 0) { showToast('请输入有效数量', 'error'); return; }
+        if (!date) { showToast('请选择日期', 'error'); return; }
+        const sku = state.skus.find(s => s.id === skuId);
+        // Check if same SKU + same date exists, merge
+        const existing = state.outboundRecords.find(r => r.skuId === skuId && r.date === date);
+        if (existing) {
+            existing.quantity += qty;
+            addLog('outbound', `出库(合并): ${sku.code} - ${sku.name}, 追加${qty}, 当日总计${existing.quantity}, 日期${date}`);
+        } else {
+            const record = { id: genId(), skuId, quantity: qty, date, createdAt: Date.now() };
+            state.outboundRecords.push(record);
+            addLog('outbound', `出库: ${sku.code} - ${sku.name}, 数量${qty}, 日期${date}`);
+        }
+        saveState();
+        renderOutboundTable();
+        document.getElementById('outbound-qty').value = '';
+        showToast(`出库成功：${sku.name} × ${qty}`);
+    }
+
+    function renderOutboundTable() {
+        const tbody = document.getElementById('outbound-table-body');
+        const empty = document.getElementById('outbound-empty');
+        const filter = document.getElementById('outbound-filter').value;
+        // Update filter options
+        const filterSel = document.getElementById('outbound-filter');
+        const currentVal = filterSel.value;
+        let opts = '<option value="all">全部SKU</option>';
+        state.skus.forEach(s => { opts += `<option value="${s.id}">${esc(s.code)} - ${esc(s.name)}</option>`; });
+        filterSel.innerHTML = opts;
+        filterSel.value = currentVal || 'all';
+
+        let list = [...state.outboundRecords].sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+        if (filter !== 'all') list = list.filter(r => r.skuId === filter);
+        if (list.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        tbody.innerHTML = list.map(r => {
+            const sku = state.skus.find(s => s.id === r.skuId);
+            if (!sku) return '';
+            return `<tr>
+                <td>${r.date}</td>
+                <td><strong>${esc(sku.code)}</strong></td>
+                <td>${esc(sku.name)}</td>
+                <td><strong style="color:var(--warning)">-${r.quantity}</strong></td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteOutbound('${r.id}')">删除</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function deleteOutbound(id) {
+        const record = state.outboundRecords.find(r => r.id === id);
+        if (!record) return;
+        const sku = state.skus.find(s => s.id === record.skuId);
+        showConfirm('删除出库记录', `确定删除此出库记录吗？(${sku?sku.code:'?'} × ${record.quantity}, ${record.date})`, () => {
+            state.outboundRecords = state.outboundRecords.filter(r => r.id !== id);
+            addLog('delete_outbound', `删除出库: ${sku?sku.code:'?'} × ${record.quantity}, 日期${record.date}`);
+            saveState();
+            renderOutboundTable();
+            showToast('出库记录已删除');
+        });
+    }
+
+    // ========== 数据分析 ==========
+    function calcSKUAnalytics(sku) {
+        const inRecords = state.inboundRecords.filter(r => r.skuId === sku.id);
+        const outRecords = state.outboundRecords.filter(r => r.skuId === sku.id);
+        const totalInbound = inRecords.reduce((s,r) => s + r.quantity, 0);
+        const totalOutbound = outRecords.reduce((s,r) => s + r.quantity, 0);
+        const remaining = totalInbound - totalOutbound;
+        let avgDailyOut = 0;
+        let daysCovered = 0;
+        if (outRecords.length > 0) {
+            if (sku.manualDays && sku.manualDays > 0) {
+                // 使用手动设置的统计天数
+                daysCovered = parseInt(sku.manualDays);
+            } else {
+                // 自动计算：从第一天出库到今天
+                const dates = outRecords.map(r => r.date).sort();
+                const firstDate = new Date(dates[0]);
+                const now = new Date(today());
+                daysCovered = Math.max(1, Math.ceil((now - firstDate) / (1000*60*60*24)) + 1);
+            }
+            avgDailyOut = totalOutbound / daysCovered;
+        }
+        let daysRemaining = 0;
+        if (avgDailyOut > 0 && remaining > 0) {
+            daysRemaining = Math.floor(remaining / avgDailyOut);
+        } else if (remaining <= 0) {
+            daysRemaining = 0;
+        } else {
+            daysRemaining = 9999; // No outbound, infinite days
+        }
+        const effectiveTargetDays = (sku.targetDays && sku.targetDays > 0) ? sku.targetDays : state.targetDays;
+        const targetStock = effectiveTargetDays * avgDailyOut;
+        const restockQty = Math.max(0, Math.ceil(targetStock - remaining));
+        return { totalInbound, totalOutbound, remaining, avgDailyOut, daysCovered, daysRemaining, restockQty, outRecordCount: outRecords.length, effectiveTargetDays };
+    }
+
+    function setManualDays(skuId, value) {
+        const sku = state.skus.find(s => s.id === skuId);
+        if (!sku) return;
+        const days = parseInt(value);
+        if (isNaN(days) || days <= 0) {
+            sku.manualDays = 0; // 清空则恢复自动计算
+        } else {
+            sku.manualDays = days;
+        }
+        saveState();
+        renderAnalytics();
+        showToast(sku.manualDays > 0 ? `已设置统计天数为 ${sku.manualDays} 天` : '已恢复自动计算统计天数');
+    }
+
+    function batchSetManualDays() {
+        const input = document.getElementById('batch-days-input');
+        const days = parseInt(input.value);
+        if (isNaN(days) || days <= 0) { showToast('请输入有效的天数', 'error'); return; }
+        if (state.skus.length === 0) { showToast('暂无SKU', 'error'); return; }
+        state.skus.forEach(sku => { sku.manualDays = days; });
+        saveState();
+        renderAnalytics();
+        showToast(`已将全部 ${state.skus.length} 个SKU的统计天数设为 ${days} 天`);
+    }
+
+    function clearAllManualDays() {
+        if (state.skus.length === 0) { showToast('暂无SKU', 'error'); return; }
+        state.skus.forEach(sku => { sku.manualDays = 0; });
+        document.getElementById('batch-days-input').value = '';
+        saveState();
+        renderAnalytics();
+        showToast('已恢复全部SKU为自动计算统计天数');
+    }
+
+    function setSkuTargetDays(skuId, value) {
+        const sku = state.skus.find(s => s.id === skuId);
+        if (!sku) return;
+        const days = parseInt(value);
+        if (isNaN(days) || days <= 0) {
+            sku.targetDays = 0;
+        } else {
+            sku.targetDays = days;
+        }
+        saveState();
+        renderAnalytics();
+        showToast(sku.targetDays > 0 ? `已设置补货目标为 ${sku.targetDays} 天` : '已恢复全局补货目标');
+    }
+
+    function batchSetTargetDays() {
+        const input = document.getElementById('batch-target-input');
+        const days = parseInt(input.value);
+        if (isNaN(days) || days <= 0) { showToast('请输入有效的天数', 'error'); return; }
+        if (state.skus.length === 0) { showToast('暂无SKU', 'error'); return; }
+        state.skus.forEach(sku => { sku.targetDays = days; });
+        saveState();
+        renderAnalytics();
+        showToast(`已将全部 ${state.skus.length} 个SKU的补货目标设为 ${days} 天`);
+    }
+
+    function clearAllTargetDays() {
+        if (state.skus.length === 0) { showToast('暂无SKU', 'error'); return; }
+        state.skus.forEach(sku => { sku.targetDays = 0; });
+        document.getElementById('batch-target-input').value = '';
+        saveState();
+        renderAnalytics();
+        showToast('已恢复全部SKU为全局补货目标');
+    }
+
+    function renderAnalytics() {
+        const summaryDiv = document.getElementById('analytics-summary');
+        const cardsDiv = document.getElementById('analytics-cards');
+        const emptyDiv = document.getElementById('analytics-empty');
+
+        if (state.skus.length === 0) {
+            summaryDiv.innerHTML = '';
+            cardsDiv.innerHTML = '';
+            emptyDiv.style.display = 'block';
+            return;
+        }
+        emptyDiv.style.display = 'none';
+
+        // Overall stats
+        let totalIn = 0, totalOut = 0, needRestock = 0;
+        const analytics = state.skus.map(sku => {
+            const a = calcSKUAnalytics(sku);
+            totalIn += a.totalInbound;
+            totalOut += a.totalOutbound;
+            if (a.restockQty > 0) needRestock++;
+            return { sku, ...a };
+        });
+        const totalRemaining = totalIn - totalOut;
+
+        summaryDiv.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-label">SKU总数</div>
+                <div class="stat-value">${state.skus.length}</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-label">总入库</div>
+                <div class="stat-value">${totalIn.toLocaleString()}</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-label">总出库</div>
+                <div class="stat-value">${totalOut.toLocaleString()}</div>
+            </div>
+            <div class="stat-card ${totalRemaining < 0 ? 'danger' : ''}">
+                <div class="stat-label">当前总库存</div>
+                <div class="stat-value">${totalRemaining.toLocaleString()}</div>
+            </div>
+            <div class="stat-card ${needRestock > 0 ? 'danger' : 'success'}">
+                <div class="stat-label">需补货SKU</div>
+                <div class="stat-value">${needRestock}</div>
+                <div class="stat-sub">目标支撑${state.targetDays}天</div>
+            </div>
+        `;
+
+        if (analytics.length === 0) {
+            cardsDiv.innerHTML = '';
+            return;
+        }
+
+        cardsDiv.innerHTML = analytics.map(a => {
+            const pct = a.avgDailyOut > 0 ? Math.min(100, (a.remaining / (a.avgDailyOut * a.effectiveTargetDays)) * 100) : (a.remaining > 0 ? 100 : 0);
+            const barColor = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warning)' : 'var(--danger)';
+            const statusBadge = a.remaining <= 0
+                ? '<span class="badge badge-danger">库存不足</span>'
+                : a.daysRemaining <= 3
+                    ? '<span class="badge badge-danger">即将断货</span>'
+                    : a.daysRemaining <= 7
+                        ? '<span class="badge badge-warning">库存偏低</span>'
+                        : '<span class="badge badge-success">库存充足</span>';
+            return `<div class="analytics-card">
+                <div class="analytics-header">
+                    <div>
+                        <span class="analytics-sku">${esc(a.sku.code)} - ${esc(a.sku.name)}</span>
+                        ${statusBadge}
+                    </div>
+                </div>
+                <div class="analytics-grid">
+                    <div class="analytics-item">
+                        <div class="label">总入库</div>
+                        <div class="value">${a.totalInbound.toLocaleString()}</div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="label">总出库</div>
+                        <div class="value">${a.totalOutbound.toLocaleString()}</div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="label">当前库存</div>
+                        <div class="value" style="color:${a.remaining<=0?'var(--danger)':'var(--text)'}">${a.remaining.toLocaleString()}</div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="label">日均出库</div>
+                        <div class="value">${a.avgDailyOut.toFixed(1)}</div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="label">可支撑天数</div>
+                        <div class="value" style="color:${a.daysRemaining<=3?'var(--danger)':a.daysRemaining<=7?'var(--warning)':'var(--success)'}">
+                            ${a.daysRemaining >= 9999 ? '∞' : a.daysRemaining + '天'}
+                        </div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="label">统计天数</div>
+                        <div class="value" style="display:flex;align-items:center;gap:4px;">
+                            <input type="number" min="1" max="3650" value="${a.sku.manualDays || ''}" placeholder="${a.daysCovered}" 
+                                style="width:60px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;"
+                                onchange="setManualDays('${a.sku.id}', this.value)" onfocus="this.select()">
+                            <span style="font-size:11px;color:var(--text-secondary)">天</span>
+                        </div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="label">补货目标</div>
+                        <div class="value" style="display:flex;align-items:center;gap:4px;">
+                            <input type="number" min="1" max="3650" value="${a.sku.targetDays || ''}" placeholder="${state.targetDays}" 
+                                style="width:60px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;"
+                                onchange="setSkuTargetDays('${a.sku.id}', this.value)" onfocus="this.select()">
+                            <span style="font-size:11px;color:var(--text-secondary)">天</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:${Math.max(0,pct)}%;background:${barColor}"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <span style="font-size:12px;color:var(--text-secondary)">库存健康度 ${Math.round(Math.max(0,pct))}%</span>
+                    ${a.restockQty > 0
+                        ? `<span class="restock-tag restock-needed">建议补货 ${a.restockQty} 件（支撑${a.effectiveTargetDays}天）</span>`
+                        : `<span class="restock-tag restock-ok">✓ 库存充足${a.effectiveTargetDays}天</span>`
+                    }
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ========== 操作历史 ==========
+    function renderHistory() {
+        const tbody = document.getElementById('history-table-body');
+        const empty = document.getElementById('history-empty');
+        if (state.operationLog.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        const typeMap = {
+            'create_sku': { label: '创建SKU', cls: 'op-create' },
+            'delete_sku': { label: '删除SKU', cls: 'op-delete' },
+            'inbound': { label: '入库', cls: 'op-inbound' },
+            'outbound': { label: '出库', cls: 'op-outbound' },
+            'delete_inbound': { label: '删入库', cls: 'op-delete' },
+            'delete_outbound': { label: '删出库', cls: 'op-delete' },
+        };
+        tbody.innerHTML = state.operationLog.map(log => {
+            const t = typeMap[log.type] || { label: log.type, cls: '' };
+            return `<tr>
+                <td style="white-space:nowrap">${formatDateTime(log.timestamp)}</td>
+                <td><span class="op-type ${t.cls}">${t.label}</span></td>
+                <td>${esc(log.detail)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ========== 导出Excel ==========
+    function exportExcel() {
+        if (typeof XLSX === 'undefined') {
+            showToast('Excel导出库未加载，请检查网络后刷新', 'error');
+            return;
+        }
+        if (state.skus.length === 0) { showToast('暂无数据可导出', 'error'); return; }
+
+        const wb = XLSX.utils.book_new();
+
+        // Sheet 1: SKU列表
+        const skuData = state.skus.map(s => ({
+            'SKU编码': s.code,
+            '产品名称': s.name,
+            '备注': s.note || '',
+            '创建时间': new Date(s.createdAt).toLocaleString('zh-CN')
+        }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(skuData), 'SKU列表');
+
+        // Sheet 2: 入库记录
+        const inData = state.inboundRecords.map(r => {
+            const sku = state.skus.find(s => s.id === r.skuId);
+            return {
+                '日期': r.date,
+                'SKU编码': sku ? sku.code : '已删除',
+                '产品名称': sku ? sku.name : '',
+                '入库数量': r.quantity
+            };
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inData), '入库记录');
+
+        // Sheet 3: 出库记录
+        const outData = state.outboundRecords.map(r => {
+            const sku = state.skus.find(s => s.id === r.skuId);
+            return {
+                '日期': r.date,
+                'SKU编码': sku ? sku.code : '已删除',
+                '产品名称': sku ? sku.name : '',
+                '出库数量': r.quantity
+            };
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(outData), '出库记录');
+
+        // Sheet 4: 库存分析
+        const analyticsData = state.skus.map(sku => {
+            const a = calcSKUAnalytics(sku);
+            return {
+                'SKU编码': sku.code,
+                '产品名称': sku.name,
+                '总入库': a.totalInbound,
+                '总出库': a.totalOutbound,
+                '当前库存': a.remaining,
+                '日均出库': parseFloat(a.avgDailyOut.toFixed(2)),
+                '统计天数': a.daysCovered,
+                '可支撑天数': a.daysRemaining >= 9999 ? '无出库记录' : a.daysRemaining,
+                [`建议补货(${state.targetDays}天)`]: a.restockQty
+            };
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analyticsData), '库存分析');
+
+        // Sheet 5: 操作历史
+        const logData = state.operationLog.map(log => ({
+            '时间': new Date(log.timestamp).toLocaleString('zh-CN'),
+            '操作类型': log.type,
+            '详情': log.detail
+        }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logData), '操作历史');
+
+        const fileName = `海外仓库存_${today()}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        addLog('export', '导出Excel报表');
+        saveState();
+        showToast('Excel导出成功');
+    }
+
+    function exportHistory() {
+        if (typeof XLSX === 'undefined') {
+            showToast('Excel导出库未加载，请检查网络后刷新', 'error');
+            return;
+        }
+        if (state.operationLog.length === 0) { showToast('暂无操作记录', 'error'); return; }
+        const wb = XLSX.utils.book_new();
+        const logData = state.operationLog.map(log => ({
+            '时间': new Date(log.timestamp).toLocaleString('zh-CN'),
+            '操作类型': log.type,
+            '详情': log.detail
+        }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logData), '操作历史');
+        XLSX.writeFile(wb, `操作历史_${today()}.xlsx`);
+        showToast('操作历史导出成功');
+    }
+
+    // ========== 数据备份/恢复 ==========
+    function exportAllData() {
+        const dataStr = JSON.stringify(state, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `海外仓库存备份_${today()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('数据备份已下载');
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (!imported.skus || !imported.inboundRecords || !imported.outboundRecords) {
+                    showToast('文件格式不正确', 'error');
+                    return;
+                }
+                showConfirm('导入数据', '导入将覆盖当前所有数据，确定继续吗？', () => {
+                    state = { ...state, ...imported };
+                    saveState();
+                    renderSKUList();
+                    refreshSKUSelects();
+                    showToast('数据导入成功');
+                });
+            } catch(err) {
+                showToast('文件解析失败', 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function confirmClearAll() {
+        showConfirm('清空所有数据', '确定要清空所有数据吗？此操作不可恢复！建议先导出备份。', () => {
+            state = { skus:[], inboundRecords:[], outboundRecords:[], operationLog:[], targetDays:12 };
+            addLog('clear', '清空所有数据');
+            saveState();
+            renderSKUList();
+            renderInboundTable();
+            renderOutboundTable();
+            renderAnalytics();
+            renderHistory();
+            showToast('所有数据已清空');
+        });
+    }
+
+    // ========== 设置 ==========
+    function saveTargetDays() {
+        const val = parseInt(document.getElementById('target-days').value);
+        if (!val || val < 1) { showToast('请输入有效天数', 'error'); return; }
+        state.targetDays = val;
+        saveState();
+        showToast(`补货目标天数已设为 ${val} 天`);
+    }
+
+    // ========== 辅助 ==========
+    function refreshSKUSelects() {
+        const opts = state.skus.map(s => `<option value="${s.id}">${esc(s.code)} - ${esc(s.name)}</option>`).join('');
+        document.getElementById('inbound-sku').innerHTML = opts || '<option value="">请先创建SKU</option>';
+        document.getElementById('outbound-sku').innerHTML = opts || '<option value="">请先创建SKU</option>';
+    }
+
+    function esc(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ========== 初始化 ==========
+    async function init() {
+        // 先加载同步配置
+        loadSyncConfig();
+        // 更新配置UI
+        document.getElementById('sync-api-url').value = syncConfig.apiUrl;
+        document.getElementById('sync-api-key').value = syncConfig.apiKey;
+        document.getElementById('sync-auto').checked = syncConfig.autoSync;
+        
+        // 加载数据
+        await loadState();
+        
+        // Set default dates
+        document.getElementById('inbound-date').value = today();
+        document.getElementById('outbound-date').value = today();
+        document.getElementById('target-days').value = state.targetDays;
+        // Render
+        renderSKUList();
+        refreshSKUSelects();
+        renderInboundTable();
+        renderOutboundTable();
+        
+        // 启动自动同步
+        startAutoSync();
+    }
+
+    init();
+    </script>
+</body>
+</html>
