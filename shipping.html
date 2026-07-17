@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>SHEIN 物流运费计算器</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .main-layout { display: flex; gap: 20px; max-width: 1100px; margin: 0 auto; align-items: flex-start; }
+        .left-panel { flex: 1; min-width: 0; }
+        .page-title { text-align: center; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .page-title h1 { color: #333; font-size: 22px; }
+        .page-title p { color: #999; font-size: 13px; width: 100%; }
+        .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); margin-bottom: 16px; }
+        .manual-section { background: #f8fbff; border: 1px solid #e0ecf8; border-radius: 14px; padding: 20px; }
+        .manual-section h3 { font-size: 14px; color: #4a90d9; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+        .manual-input-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+        .manual-input-row input {
+            flex: 1; padding: 12px 16px; border: 1px solid #d0dce8; border-radius: 10px;
+            font-size: 16px; text-align: center; background: #fff; color: #333; outline: none;
+        }
+        .manual-input-row input:focus { border-color: #4a90d9; }
+        .manual-input-row .unit { color: #999; font-size: 14px; white-space: nowrap; }
+        .manual-result { display: none; background: #fff; border: 1px solid #e8f0f8; border-radius: 10px; padding: 16px; }
+        .manual-result.show { display: block; }
+        .cost-cards { display: flex; gap: 10px; margin-bottom: 12px; }
+        .cost-card { flex: 1; text-align: center; padding: 12px 8px; border-radius: 10px; background: #f5f7fa; border: 2px solid transparent; transition: all 0.3s; }
+        .cost-card.best { border-color: #4caf50; background: #e8f5e9; }
+        .cost-card .name { font-size: 12px; color: #888; margin-bottom: 4px; }
+        .cost-card .price { font-size: 20px; font-weight: 700; color: #333; }
+        .cost-card.best .price { color: #2E7D32; }
+        .cost-card.oob .price { color: #ccc; font-size: 14px; }
+        .manual-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .manual-btn { padding: 7px 16px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .manual-btn.add { background: #e8f5e9; color: #2E7D32; }
+        .manual-btn.add:hover { background: #c8e6c9; }
+        .btn-row { display: flex; gap: 12px; }
+        .btn { flex: 1; padding: 13px 18px; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background: linear-gradient(135deg, #4a90d9, #357abd); color: #fff; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(74,144,217,0.3); }
+        .btn-secondary { background: #f0f2f5; color: #555; border: 1px solid #e0e0e0; }
+        .btn-secondary:hover { background: #e4e7eb; color: #333; }
+        .pricing-table { border: 1px solid #eee; border-radius: 12px; overflow: hidden; }
+        .pricing-table summary { padding: 11px 16px; background: #f8f9fa; color: #666; font-size: 13px; cursor: pointer; user-select: none; }
+        .pricing-table summary:hover { background: #f0f2f5; }
+        .pricing-body { padding: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #4BACC6; color: #fff; padding: 7px 8px; font-weight: 600; }
+        td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #444; }
+        tr:hover td { background: #fafbfc; }
+        .batch-area { display: none; }
+        .batch-area.show { display: block; }
+        .batch-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .batch-header h3 { font-size: 15px; color: #333; }
+        .action-btn { padding: 7px 14px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .action-btn.copy { background: #e8f0fe; color: #4a90d9; }
+        .action-btn.copy:hover { background: #d2e3fc; }
+        .action-btn.download { background: #e8f5e9; color: #2E7D32; }
+        .action-btn.download:hover { background: #c8e6c9; }
+        .action-btn.clear { background: #ffebee; color: #c62828; }
+        .action-btn.clear:hover { background: #ffcdd2; }
+        .table-wrap { max-height: 360px; overflow-y: auto; border-radius: 8px; }
+        .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .result-table th { background: #4BACC6; color: #fff; padding: 7px 5px; font-size: 11px; position: sticky; top: 0; z-index: 1; }
+        .result-table td { padding: 5px; border-bottom: 1px solid #eee; text-align: center; }
+        .best-carrier { background: #E8F5E9; color: #2E7D32; font-weight: 600; }
+        .best-cost { background: #FFF8E1; color: #E65100; font-weight: 700; }
+        .summary { margin-top: 12px; padding: 10px 14px; background: #f0f7ff; border-radius: 8px; font-size: 12px; color: #555; line-height: 1.8; }
+        .right-panel { width: 320px; flex-shrink: 0; position: sticky; top: 24px; }
+        .right-card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        .right-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .right-card-header h3 { font-size: 14px; color: #e65100; display: flex; align-items: center; gap: 6px; }
+        .right-card-header .badge { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .right-actions { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .right-btn { padding: 5px 10px; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .right-btn.copy { background: #e8f0fe; color: #4a90d9; }
+        .right-btn.copy:hover { background: #d2e3fc; }
+        .right-btn.download { background: #e8f5e9; color: #2E7D32; }
+        .right-btn.download:hover { background: #c8e6c9; }
+        .right-btn.clear { background: #ffebee; color: #c62828; }
+        .right-btn.clear:hover { background: #ffcdd2; }
+        .manual-table-wrap { max-height: 500px; overflow-y: auto; }
+        .manual-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .manual-table th { background: #ff9800; color: #fff; padding: 6px 4px; font-size: 10px; position: sticky; top: 0; z-index: 1; }
+        .manual-table td { padding: 5px 3px; border-bottom: 1px solid #f5f5f5; text-align: center; font-size: 11px; }
+        .manual-table .mc-channel { background: #E8F5E9; color: #2E7D32; font-weight: 600; }
+        .manual-empty { text-align: center; padding: 30px 10px; color: #ccc; font-size: 13px; }
+        .manual-summary { margin-top: 10px; padding: 8px 10px; background: #fff8e1; border-radius: 6px; font-size: 11px; color: #795548; line-height: 1.7; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #4caf50; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: #ef4444; }
+        input[type="file"] { display: none; }
+        @media (max-width: 860px) { .main-layout { flex-direction: column; } .right-panel { width: 100%; position: static; } }
+    </style>
+</head>
+<body>
+<div class="main-layout">
+    <div class="left-panel">
+        <div class="page-title">
+            <h1>📦 SHEIN 物流运费计算器</h1>
+            <p>Gofo / CBS / USPS 三家比价 · 批量最多 2000 条</p>
+        </div>
+        <div class="card">
+            <div class="manual-section">
+                <h3>✏️ 手动计算</h3>
+                <div class="manual-input-row">
+                    <input type="number" id="manualGrams" placeholder="输入克重" min="0" step="1">
+                    <span class="unit">克 (g)</span>
+                </div>
+                <div id="manualResult" class="manual-result">
+                    <div class="cost-cards" id="costCards"></div>
+                    <div class="manual-actions">
+                        <button class="manual-btn add" onclick="addManualRecord()">➕ 加入右侧记录</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="downloadTemplate()">📥 下载计费模板</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">📤 上传批量计算</button>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleUpload(event)">
+        </div>
+        <div class="card" style="padding: 0;">
+            <details class="pricing-table" id="pricingDetails">
+                <summary>📋 查看计费规则（点击展开）</summary>
+                <div class="pricing-body">
+                    <table id="pricingTable">
+                        <thead><tr><th>重量区间(磅)</th><th>重量区间(克)</th><th>Gofo($)</th><th>CBS($)</th><th>USPS($)</th></tr></thead>
+                        <tbody id="pricingBody"></tbody>
+                    </table>
+                </div>
+            </details>
+        </div>
+        <div class="card batch-area" id="batchArea">
+            <div class="batch-header">
+                <h3 id="batchTitle">📊 批量计算结果</h3>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button class="action-btn copy" onclick="copyBatch()">📋 复制</button>
+                    <button class="action-btn download" onclick="downloadBatch()">💾 下载Excel</button>
+                    <button class="action-btn clear" onclick="clearBatch()">🗑 清空</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="result-table">
+                    <thead><tr><th>#</th><th>克重(g)</th><th>Gofo($)</th><th>CBS($)</th><th>USPS($)</th><th>最优渠道</th><th>最优运费</th></tr></thead>
+                    <tbody id="batchBody"></tbody>
+                </table>
+            </div>
+            <div id="batchSummary"></div>
+        </div>
+    </div>
+    <div class="right-panel">
+        <div class="right-card">
+            <div class="right-card-header">
+                <h3>📝 手动计算记录</h3>
+                <span class="badge" id="manualBadge">0 条</span>
+            </div>
+            <div class="right-actions">
+                <button class="right-btn copy" onclick="copyManual()">📋 复制</button>
+                <button class="right-btn download" onclick="downloadManual()">💾 导出Excel</button>
+                <button class="right-btn clear" onclick="clearManual()">🗑 清空</button>
+            </div>
+            <div class="manual-table-wrap">
+                <div id="manualEmpty" class="manual-empty">暂无记录<br><span style="font-size:11px;color:#ddd;">输入克重后点「加入右侧记录」</span></div>
+                <table class="manual-table" id="manualTable" style="display:none;">
+                    <thead><tr><th>#</th><th>克重(g)</th><th>Gofo</th><th>CBS</th><th>USPS</th><th>最优</th></tr></thead>
+                    <tbody id="manualBody"></tbody>
+                </table>
+            </div>
+            <div id="manualSummaryBox"></div>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+// ===== 远程 API 配置 =====
+const API_BASE = 'https://data-sync.xjyybdz.workers.dev';
+const MAX_ROWS = 2000;
+
+let batchResults = [];
+let manualRecords = [];
+let manualCalcTimer = null;
+
+// ===== API 调用 =====
+async function apiCalculate(grams) {
+    const resp = await fetch(`${API_BASE}/api/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grams })
+    });
+    if (!resp.ok) throw new Error('计算请求失败');
+    return resp.json();
+}
+
+async function apiCalculateBatch(gramsList) {
+    const resp = await fetch(`${API_BASE}/api/calculate-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grams: gramsList })
+    });
+    if (!resp.ok) throw new Error('批量计算请求失败');
+    return resp.json();
+}
+
+// ===== 手动计算（防抖调用API）=====
+document.getElementById('manualGrams').addEventListener('input', function() {
+    clearTimeout(manualCalcTimer);
+    const grams = parseFloat(this.value);
+    if (isNaN(grams) || grams <= 0) {
+        document.getElementById('manualResult').classList.remove('show');
+        return;
+    }
+    manualCalcTimer = setTimeout(async () => {
+        try {
+            const result = await apiCalculate(grams);
+            const G_PER_LB = 453.592;
+            const lbs = (grams / G_PER_LB).toFixed(3);
+            const carriers = [
+                { name: "Gofo", cost: result.gofo },
+                { name: "CBS", cost: result.cbs },
+                { name: "USPS", cost: result.usps }
+            ];
+            const valid = carriers.filter(c => c.cost !== "超4磅");
+            const bestCost = valid.length > 0 ? Math.min(...valid.map(c => parseFloat(c.cost))) : -1;
+            let html = "";
+            carriers.forEach(c => {
+                const isBest = parseFloat(c.cost) === bestCost && c.cost !== "超4磅";
+                const isOOB = c.cost === "超4磅";
+                let cls = "cost-card";
+                if (isBest) cls += " best";
+                if (isOOB) cls += " oob";
+                html += '<div class="' + cls + '"><div class="name">' + (isBest ? "⭐ " : "") + c.name + '</div><div class="price">' + (isOOB ? "超出范围" : "$" + c.cost) + '</div></div>';
+            });
+            html += '<div style="text-align:center;font-size:11px;color:#aaa;margin-top:4px;">' + grams + 'g = ' + lbs + ' lbs</div>';
+            document.getElementById('costCards').innerHTML = html;
+            document.getElementById('manualResult').classList.add('show');
+        } catch (e) {
+            showToast('⚠️ 计算失败，请检查网络连接', true);
+        }
+    }, 300);
+});
+
+async function addManualRecord() {
+    const grams = parseFloat(document.getElementById("manualGrams").value);
+    if (isNaN(grams) || grams <= 0) return;
+    try {
+        const result = await apiCalculate(grams);
+        manualRecords.push(result);
+        renderManual();
+        showToast("✅ 已加入手动记录（第 " + manualRecords.length + " 条）");
+    } catch (e) {
+        showToast('⚠️ 添加失败', true);
+    }
+}
+
+function renderManual() {
+    const empty = document.getElementById("manualEmpty");
+    const table = document.getElementById("manualTable");
+    const tbody = document.getElementById("manualBody");
+    const badge = document.getElementById("manualBadge");
+    const summaryBox = document.getElementById("manualSummaryBox");
+    badge.textContent = manualRecords.length + " 条";
+    if (manualRecords.length === 0) { empty.style.display = "block"; table.style.display = "none"; summaryBox.innerHTML = ""; return; }
+    empty.style.display = "none";
+    table.style.display = "table";
+    let html = "";
+    const carrierCount = {};
+    manualRecords.forEach((r, i) => {
+        if (r.bestCarrier !== "-") carrierCount[r.bestCarrier] = (carrierCount[r.bestCarrier] || 0) + 1;
+        html += '<tr><td>' + (i + 1) + '</td><td>' + r.grams + '</td><td>' + r.gofo + '</td><td>' + r.cbs + '</td><td>' + r.usps + '</td><td class="mc-channel">' + r.bestCarrier + '</td></tr>';
+    });
+    tbody.innerHTML = html;
+    const validCosts = manualRecords.filter(r => r.bestCost !== "-").map(r => parseFloat(r.bestCost));
+    if (validCosts.length > 0) {
+        const minC = Math.min(...validCosts), maxC = Math.max(...validCosts);
+        const avgC = validCosts.reduce((a, b) => a + b, 0) / validCosts.length;
+        let s = '<div class="manual-summary"><strong>📊 分布：</strong>';
+        Object.entries(carrierCount).sort((a, b) => b[1] - a[1]).forEach(([c, n]) => { s += c + ' ' + n + '次 '; });
+        s += '<br><strong>💰 范围：</strong>$' + minC.toFixed(2) + ' ~ $' + maxC.toFixed(2) + ' 均$' + avgC.toFixed(2);
+        s += '</div>';
+        summaryBox.innerHTML = s;
+    }
+}
+
+function copyManual() {
+    if (manualRecords.length === 0) { showToast("⚠️ 没有记录"); return; }
+    let text = "序号\t克重(g)\tGofo($)\tCBS($)\tUSPS($)\t最优渠道\n";
+    manualRecords.forEach((r, i) => { text += (i + 1) + "\t" + r.grams + "\t" + r.gofo + "\t" + r.cbs + "\t" + r.usps + "\t" + r.bestCarrier + "\n"; });
+    navigator.clipboard.writeText(text).then(() => showToast("📋 已复制 " + manualRecords.length + " 条"));
+}
+
+function downloadManual() {
+    if (manualRecords.length === 0) { showToast("⚠️ 没有记录"); return; }
+    const data = [["#", "克重(g)", "Gofo($)", "CBS($)", "USPS($)", "最优渠道", "最优运费($)"]];
+    manualRecords.forEach((r, i) => { data.push([i + 1, r.grams, r.gofo, r.cbs, r.usps, r.bestCarrier, r.bestCost]); });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:4},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "手动计算结果");
+    XLSX.writeFile(wb, "手动计算结果_" + new Date().toISOString().slice(0, 10) + ".xlsx");
+    showToast("✅ 已导出");
+}
+
+function clearManual() {
+    if (manualRecords.length === 0) return;
+    manualRecords = [];
+    renderManual();
+    showToast("🗑 已清空手动记录");
+}
+
+function downloadTemplate() {
+    const data = [["包裹克重", "收费预算"]];
+    for (let i = 1; i <= 10; i++) data.push([i * 100, ""]);
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{ wch: 14 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "运费计费");
+    XLSX.writeFile(wb, "运费计费模板.xlsx");
+    showToast("✅ 模板已下载");
+}
+
+async function handleUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+            const totalRows = range.e.r - range.s.r;
+            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+            let gramColIdx = -1;
+            if (rawData.length > 0) {
+                const headerRow = rawData[0];
+                for (let i = 0; i < headerRow.length; i++) {
+                    const val = String(headerRow[i]).trim();
+                    if (val === "包裹克重" || val.includes("克重") || val.toLowerCase().includes("gram")) {
+                        gramColIdx = i;
+                        break;
+                    }
+                }
+                if (gramColIdx === -1) gramColIdx = 0;
+            }
+
+            const headerName = rawData.length > 0 ? String(rawData[0][gramColIdx]).trim() : "未知";
+            let diag = "📋 文件诊断信息：\n";
+            diag += "• 识别列名：" + headerName + "（第" + (gramColIdx + 1) + "列）\n";
+            diag += "• 表格总行数：" + totalRows + "（含表头）\n";
+            diag += "• 数据行数：" + (rawData.length - 1) + "（去掉表头）\n";
+            alert(diag);
+
+            // 收集所有有效克重
+            const gramsList = [];
+            let skipped = 0;
+            for (let i = 1; i < rawData.length && gramsList.length < MAX_ROWS; i++) {
+                const rawVal = rawData[i][gramColIdx];
+                const grams = parseFloat(rawVal);
+                if (isNaN(grams) || grams <= 0 || rawVal === "" || rawVal === null || rawVal === undefined) {
+                    skipped++;
+                    continue;
+                }
+                gramsList.push(grams);
+            }
+
+            // 调用批量计算 API
+            showToast("⏳ 正在云端计算 " + gramsList.length + " 条...");
+            const resp = await apiCalculateBatch(gramsList);
+            batchResults = resp.results || [];
+            renderBatch();
+
+            let msg = "✅ 成功计算 " + batchResults.length + " 条";
+            if (skipped > 0) msg += "，跳过 " + skipped + " 条（空值或无效）";
+            showToast(msg);
+
+        } catch (err) {
+            showToast("❌ 解析失败: " + err.message, true);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = "";
+}
+
+function renderBatch() {
+    const area = document.getElementById("batchArea");
+    const tbody = document.getElementById("batchBody");
+    const title = document.getElementById("batchTitle");
+    const summaryBox = document.getElementById("batchSummary");
+    if (batchResults.length === 0) { area.classList.remove("show"); tbody.innerHTML = ""; summaryBox.innerHTML = ""; return; }
+    area.classList.add("show");
+    title.textContent = "📊 批量计算结果（共 " + batchResults.length + " 条）";
+    let html = "";
+    const carrierCount = {};
+    batchResults.forEach((r, i) => {
+        if (r.bestCarrier !== "-") carrierCount[r.bestCarrier] = (carrierCount[r.bestCarrier] || 0) + 1;
+        const isBest = r.bestCarrier !== "-";
+        html += '<tr><td>' + (i + 1) + '</td><td>' + r.grams + '</td><td>' + r.gofo + '</td><td>' + r.cbs + '</td><td>' + r.usps + '</td>'
+            + '<td class="' + (isBest ? 'best-carrier' : '') + '">' + r.bestCarrier + '</td>'
+            + '<td class="' + (isBest ? 'best-cost' : '') + '">' + (r.bestCost === "-" ? "-" : "$" + r.bestCost) + '</td></tr>';
+    });
+    tbody.innerHTML = html;
+    const validCosts = batchResults.filter(r => r.bestCost !== "-").map(r => parseFloat(r.bestCost));
+    if (validCosts.length > 0) {
+        const minC = Math.min(...validCosts), maxC = Math.max(...validCosts);
+        const avgC = validCosts.reduce((a, b) => a + b, 0) / validCosts.length;
+        let s = '<div class="summary"><strong>📊 最优渠道分布：</strong><br>';
+        Object.entries(carrierCount).sort((a, b) => b[1] - a[1]).forEach(([c, n]) => { s += c + ': <strong>' + n + '</strong> 次 '; });
+        s += '<br><strong>💰 运费范围：</strong> $' + minC.toFixed(2) + ' ~ $' + maxC.toFixed(2) + ' 平均: $' + avgC.toFixed(2);
+        s += '</div>';
+        summaryBox.innerHTML = s;
+    }
+}
+
+function copyBatch() {
+    if (batchResults.length === 0) { showToast("⚠️ 没有结果"); return; }
+    let text = "序号\t克重(g)\tGofo($)\tCBS($)\tUSPS($)\t最优渠道\t最优运费\n";
+    batchResults.forEach((r, i) => { text += (i+1) + "\t" + r.grams + "\t" + r.gofo + "\t" + r.cbs + "\t" + r.usps + "\t" + r.bestCarrier + "\t" + r.bestCost + "\n"; });
+    navigator.clipboard.writeText(text).then(() => showToast("📋 已复制 " + batchResults.length + " 条"));
+}
+
+function downloadBatch() {
+    if (batchResults.length === 0) { showToast("⚠️ 没有结果"); return; }
+    const data = [["#", "克重(g)", "Gofo($)", "CBS($)", "USPS($)", "最优渠道", "最优运费($)"]];
+    batchResults.forEach((r, i) => { data.push([i + 1, r.grams, r.gofo, r.cbs, r.usps, r.bestCarrier, r.bestCost]); });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:5},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "运费结果");
+    XLSX.writeFile(wb, "运费计算结果_" + new Date().toISOString().slice(0,10) + ".xlsx");
+    showToast("✅ 已导出");
+}
+
+function clearBatch() {
+    if (batchResults.length === 0) return;
+    batchResults = [];
+    renderBatch();
+    showToast("🗑 已清空批量结果");
+}
+
+function showToast(msg, isError) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ===== 初始化 =====
+async function init() {
+    // 从API获取计费规则表并渲染
+    try {
+        const resp = await fetch(`${API_BASE}/api/pricing`);
+        if (resp.ok) {
+            const pricing = await resp.json();
+            const tbody = document.getElementById('pricingBody');
+            let html = '';
+            const G_PER_LB = 453.592;
+            pricing.forEach(row => {
+                const lowG = Math.round(row[0] * G_PER_LB);
+                const highG = Math.round(row[1] * G_PER_LB);
+                html += '<tr><td>' + row[0].toFixed(2) + ' ~ ' + row[1].toFixed(2) + '</td>';
+                html += '<td>' + lowG + ' ~ ' + highG + 'g</td>';
+                html += '<td>' + row[2].toFixed(2) + '</td>';
+                html += '<td>' + row[3].toFixed(2) + '</td>';
+                html += '<td>' + row[4].toFixed(2) + '</td></tr>';
+            });
+            tbody.innerHTML = html;
+        }
+    } catch (e) {
+        document.getElementById('pricingBody').innerHTML = '<tr><td colspan="5" style="color:#c62828;padding:12px;">无法加载计费规则，请检查网络</td></tr>';
+    }
+}
+
+init();
+</script>
+</body>
+</html>
