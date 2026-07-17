@@ -363,6 +363,15 @@
             this.toast('已清空所有文件', 'success');
         }
 
+        clearFilesAfterMerge() {
+            this.files = [];
+            this.fileNames.clear();
+            this.els.fileList.innerHTML = '';
+            this.els.mergeBtn.disabled = true;
+            this.els.previewBtn.disabled = true;
+            this.els.countNumber.textContent = '0';
+        }
+
         fmtSize(bytes) {
             if (!bytes) return '0 B';
             const k = 1024, units = ['B','KB','MB','GB'];
@@ -435,7 +444,9 @@
 
                 this.showProgress('完成！', 100);
                 this.els.downloadBtn.disabled = false;
-                this.toast(`合并成功！共 ${this.mergedData.length - (settings.headerHandling !== 'none' ? 1 : 0)} 行数据`, 'success');
+                this.toast(`合并成功！共 ${this.mergedData.length - (settings.headerHandling !== 'none' ? 1 : 0)} 行数据，已自动清空文件列表`, 'success');
+                // 合并成功后自动清空已添加的文件列表（保留合并结果）
+                this.clearFilesAfterMerge();
                 setTimeout(() => { this.hideProgress(); this.els.mergeBtn.disabled = false; }, 800);
             } catch (err) {
                 console.error(err);
