@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美国州名批量转缩写工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f1f5f9; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; padding: 20px; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; height: calc(100vh - 40px); }
+        .title-box { text-align: center; padding: 14px; background: #0f766e; color: #fff; border-radius: 10px; font-size: 20px; font-weight: 700; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+        button:hover { opacity: 0.85; transform: translateY(-1px); }
+        .btn-run { background: #0f766e; color: #fff; }
+        .btn-demo { background: #10b981; color: #fff; }
+        .btn-clear { background: #6b7280; color: #fff; }
+        .btn-copy { background: #f97316; color: #fff; }
+        .btn-export { background: #8b5cf6; color: #fff; }
+        .btn-dedup { background: #0ea5e9; color: #fff; }
+        .btn-reverse { background: #6366f1; color: #fff; }
+        .mode-switch { display: flex; gap: 0; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); align-self: center; }
+        .mode-btn { padding: 10px 24px; border: none; background: transparent; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; color: #64748b; }
+        .mode-btn.active { background: #0f766e; color: #fff; }
+        .content-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; min-height: 0; }
+        .card { background: #fff; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card h3 { font-size: 15px; color: #1f2937; }
+        .card-header { display: flex; align-items: center; justify-content: space-between; }
+        textarea { flex: 1; resize: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px; font-size: 14px; line-height: 1.6; min-height: 0; }
+        textarea:focus { outline: 2px solid #0f766e; border-color: transparent; }
+        .tip-text { font-size: 12px; color: #64748b; }
+        .copy-tip { color: #10b981; height: 18px; font-size: 13px; }
+        .stats { display: flex; gap: 12px; font-size: 12px; flex-wrap: wrap; }
+        .stats span { padding: 2px 8px; border-radius: 10px; }
+        .stat-total { background: #f1f5f9; color: #374151; }
+        .stat-ok { background: #dcfce7; color: #15803d; }
+        .stat-err { background: #fee2e2; color: #dc2626; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        @media (max-width: 768px) { .content-wrap { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title-box">🇺🇸 美国州名批量转换工具</div>
+
+        <div class="mode-switch">
+            <button class="mode-btn active" onclick="switchMode('abbr')">全称 → 缩写</button>
+            <button class="mode-btn" onclick="switchMode('full')">缩写 → 全称</button>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-run" onclick="startConvert()">执行转换</button>
+            <button class="btn-demo" onclick="fillDemo()">填充测试示例</button>
+            <button class="btn-clear" onclick="clearAll()">清空全部</button>
+            <button class="btn-dedup" onclick="dedupInput()">输入去重</button>
+            <button class="btn-copy" onclick="copyResult()">一键复制输出结果</button>
+            <button class="btn-export" onclick="exportCSV()">导出CSV</button>
+        </div>
+
+        <div class="content-wrap">
+            <div class="card">
+                <div class="card-header">
+                    <h3 id="inputTitle">输入区（州全称，一行一个）</h3>
+                    <span id="inputCount" class="tip-text">0 行</span>
+                </div>
+                <div class="tip-text" id="inputTip">支持大小写混合，如：ALABAMA / California / new york</div>
+                <textarea id="inputBox" placeholder="请粘贴或输入州全称，一行一个：
+ALABAMA
+California
+New York
+NORTH CAROLINA"></textarea>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>输出结果</h3>
+                    <span id="outputCount" class="tip-text"></span>
+                </div>
+                <div class="tip-text">复制后粘贴到Excel自动分两列（Tab分隔），无法识别的标记 ❓</div>
+                <div id="statsArea" class="stats" style="display:none"></div>
+                <textarea id="outputBox" readonly style="background:#fafafa"></textarea>
+                <div class="copy-tip" id="copyTip"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // 全称 → 缩写
+    const fullToAbbr = {
+        "alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA",
+        "colorado":"CO","connecticut":"CT","delaware":"DE","florida":"FL","georgia":"GA",
+        "hawaii":"HI","idaho":"ID","illinois":"IL","indiana":"IN","iowa":"IA",
+        "kansas":"KS","kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD",
+        "massachusetts":"MA","michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO",
+        "montana":"MT","nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ",
+        "new mexico":"NM","new york":"NY","north carolina":"NC","north dakota":"ND","ohio":"OH",
+        "oklahoma":"OK","oregon":"OR","pennsylvania":"PA","rhode island":"RI","south carolina":"SC",
+        "south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT","vermont":"VT",
+        "virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY"
+    };
+
+    // 缩写 → 全称
+    const abbrToFull = {
+        "al":"Alabama","ak":"Alaska","az":"Arizona","ar":"Arkansas","ca":"California",
+        "co":"Colorado","ct":"Connecticut","de":"Delaware","fl":"Florida","ga":"Georgia",
+        "hi":"Hawaii","id":"Idaho","il":"Illinois","in":"Indiana","ia":"Iowa",
+        "ks":"Kansas","ky":"Kentucky","la":"Louisiana","me":"Maine","md":"Maryland",
+        "ma":"Massachusetts","mi":"Michigan","mn":"Minnesota","ms":"Mississippi","mo":"Missouri",
+        "mt":"Montana","ne":"Nebraska","nv":"Nevada","nh":"New Hampshire","nj":"New Jersey",
+        "nm":"New Mexico","ny":"New York","nc":"North Carolina","nd":"North Dakota","oh":"Ohio",
+        "ok":"Oklahoma","or":"Oregon","pa":"Pennsylvania","ri":"Rhode Island","sc":"South Carolina",
+        "sd":"South Dakota","tn":"Tennessee","tx":"Texas","ut":"Utah","vt":"Vermont",
+        "va":"Virginia","wa":"Washington","wv":"West Virginia","wi":"Wisconsin","wy":"Wyoming"
+    };
+
+    // 缩写验证集合（用于判断输入是缩写还是全称）
+    const abbrSet = new Set(Object.keys(abbrToFull));
+
+    let currentMode = 'abbr'; // 'abbr' = full→abbr, 'full' = abbr→full
+
+    const inputBox = document.getElementById('inputBox');
+    const outputBox = document.getElementById('outputBox');
+    const copyTip = document.getElementById('copyTip');
+    const statsArea = document.getElementById('statsArea');
+
+    inputBox.addEventListener('input', () => {
+        const lines = inputBox.value.trim().split('\n').filter(l => l.trim());
+        document.getElementById('inputCount').textContent = lines.length + ' 行';
+    });
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        if (mode === 'abbr') {
+            document.querySelectorAll('.mode-btn')[0].classList.add('active');
+            document.getElementById('inputTitle').textContent = '输入区（州全称，一行一个）';
+            document.getElementById('inputTip').textContent = '支持大小写混合，如：ALABAMA / California / new york';
+            inputBox.placeholder = '请粘贴或输入州全称，一行一个：\nALABAMA\nCalifornia\nNew York\nNORTH CAROLINA';
+        } else {
+            document.querySelectorAll('.mode-btn')[1].classList.add('active');
+            document.getElementById('inputTitle').textContent = '输入区（州缩写，一行一个）';
+            document.getElementById('inputTip').textContent = '输入两位缩写，不区分大小写，如：CA / ny / Tx';
+            inputBox.placeholder = '请粘贴或输入州缩写，一行一个：\nCA\nNY\nTX\nNC';
+        }
+        clearAll();
+    }
+
+    function startConvert() {
+        copyTip.textContent = '';
+        const rawText = inputBox.value.trim();
+        if (!rawText) { outputBox.value = '请先输入数据！'; return; }
+
+        let lines = rawText.split(/\r?\n/).filter(l => l.trim());
+        let resultArr = [];
+        let okCount = 0, errCount = 0;
+
+        if (currentMode === 'abbr') {
+            // 全称 → 缩写
+            lines.forEach(item => {
+                const raw = item.trim();
+                const key = raw.toLowerCase();
+                const abbr = fullToAbbr[key];
+                if (abbr) {
+                    resultArr.push(`${raw}\t${abbr}`);
+                    okCount++;
+                } else {
+                    resultArr.push(`${raw}\t❓`);
+                    errCount++;
+                }
+            });
+        } else {
+            // 缩写 → 全称
+            lines.forEach(item => {
+                const raw = item.trim();
+                const key = raw.toLowerCase();
+                const full = abbrToFull[key];
+                if (full) {
+                    resultArr.push(`${raw}\t${full}`);
+                    okCount++;
+                } else {
+                    resultArr.push(`${raw}\t❓`);
+                    errCount++;
+                }
+            });
+        }
+
+        outputBox.value = resultArr.join('\n');
+        const total = lines.length;
+        document.getElementById('outputCount').textContent = `${total} 条结果`;
+        statsArea.style.display = 'flex';
+        statsArea.innerHTML = `
+            <span class="stat-total">总计: ${total}</span>
+            <span class="stat-ok">成功: ${okCount}</span>
+            ${errCount > 0 ? `<span class="stat-err">未识别: ${errCount}</span>` : ''}
+        `;
+    }
+
+    function dedupInput() {
+        const rawText = inputBox.value.trim();
+        if (!rawText) return;
+        const lines = rawText.split(/\r?\n/).filter(l => l.trim());
+        const seen = new Set();
+        const unique = [];
+        let removed = 0;
+        for (const line of lines) {
+            const key = line.trim().toLowerCase();
+            if (!seen.has(key)) { seen.add(key); unique.push(line.trim()); }
+            else removed++;
+        }
+        inputBox.value = unique.join('\n');
+        document.getElementById('inputCount').textContent = unique.length + ' 行';
+        showToast(`去重完成，移除 ${removed} 条重复项`);
+    }
+
+    async function copyResult() {
+        const text = outputBox.value;
+        if (!text) { copyTip.textContent = '暂无可复制内容！'; return; }
+        try {
+            await navigator.clipboard.writeText(text);
+            copyTip.textContent = '✅ 复制成功！粘贴到Excel自动分两列';
+        } catch {
+            outputBox.select();
+            document.execCommand('copy');
+            copyTip.textContent = '✅ 复制成功！';
+        }
+    }
+
+    function exportCSV() {
+        const text = outputBox.value;
+        if (!text) { showToast('请先执行转换'); return; }
+        const header = currentMode === 'abbr' ? '州全称,州缩写\n' : '州缩写,州全称\n';
+        let csv = header;
+        text.split('\n').forEach(line => {
+            const parts = line.split('\t');
+            csv += `"${parts[0]}","${parts[1] || ''}"\n`;
+        });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `州名转换_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        showToast('已导出 CSV');
+    }
+
+    function fillDemo() {
+        if (currentMode === 'abbr') {
+            inputBox.value = `ALABAMA\nCalifornia\nNew York\nNORTH CAROLINA\nTEXAS\nMASSACHUSETTS\nFLORIDA\nOHIO\nXY`;
+            document.getElementById('inputCount').textContent = '9 行';
+        } else {
+            inputBox.value = `CA\nNY\nTX\nNC\nFL\nMA\nOH\nWA\nXX`;
+            document.getElementById('inputCount').textContent = '9 行';
+        }
+        outputBox.value = '';
+        copyTip.textContent = '';
+        statsArea.style.display = 'none';
+    }
+
+    function clearAll() {
+        inputBox.value = '';
+        outputBox.value = '';
+        copyTip.textContent = '';
+        statsArea.style.display = 'none';
+        document.getElementById('inputCount').textContent = '0 行';
+        document.getElementById('outputCount').textContent = '';
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+    </script>
+</body>
+</html>
