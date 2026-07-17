@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日期批量转换器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 24px; color: #1e293b; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 24px; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .label { font-weight: 600; font-size: 14px; color: #374151; margin-bottom: 8px; display: block; }
+        textarea { width: 100%; min-height: 160px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+        textarea:focus { outline: none; border-color: #3b82f6; }
+        .hint { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+        .settings { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; align-items: center; }
+        .settings label { font-size: 13px; color: #374151; }
+        .settings select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline { background: #f1f5f9; color: #374151; border: 1px solid #e2e8f0; }
+        .btn-outline:hover { background: #e2e8f0; }
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .result-wrap { margin-top: 16px; }
+        .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .result-table th { background: #f8fafc; padding: 10px 12px; text-align: left; font-weight: 600; color: #64748b; border-bottom: 2px solid #e2e8f0; font-size: 12px; }
+        .result-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-family: 'Courier New', monospace; }
+        .result-table tr:hover td { background: #f8fafc; }
+        .result-table .err { color: #ef4444; }
+        .result-table .ok { color: #10b981; }
+        .stats-bar { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; color: #64748b; }
+        .stats-bar .ok { color: #10b981; }
+        .stats-bar .fail { color: #ef4444; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 日期批量转换器</h1>
+        <p class="subtitle">粘贴原始日期，每行一条，一键转换格式</p>
+
+        <div class="card">
+            <label class="label">输入日期（每行一个）</label>
+            <textarea id="inputBox" placeholder="支持以下格式：
+20 May 2026 23:30
+2026-Apr-25 14:49
+2026-04-25 14:49:30
+04/25/2026
+2026/04/25
+25/04/2026
+Apr 25, 2026
+2026年4月25日"></textarea>
+            <div class="hint">支持英文月份、中文日期、斜杠/横杠分隔等多种格式，无法识别的行会原样保留</div>
+
+            <div class="settings">
+                <label>输出格式：</label>
+                <select id="outputFormat">
+                    <option value="yyyy/m/d">2026/4/25</option>
+                    <option value="yyyy/mm/dd">2026/04/25</option>
+                    <option value="yyyy-mm-dd">2026-04-25</option>
+                    <option value="yyyymmdd">20260425</option>
+                    <option value="mm/dd/yyyy">04/25/2026</option>
+                    <option value="original">保留原始时间</option>
+                </select>
+                <label><input type="checkbox" id="keepTime"> 保留时分秒</label>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="convert()">一键转换</button>
+                <button class="btn btn-outline" onclick="fillDemo()">填充示例</button>
+                <button class="btn btn-outline" onclick="clearAll()">清空</button>
+            </div>
+        </div>
+
+        <div class="card" id="resultCard" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <label class="label" style="margin:0">转换结果</label>
+                <div class="btn-row" style="margin:0">
+                    <button class="btn btn-success" onclick="copyResult()">📋 复制结果</button>
+                    <button class="btn btn-outline" onclick="exportCSV()">💾 导出CSV</button>
+                </div>
+            </div>
+            <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px">
+                <table class="result-table">
+                    <thead><tr><th>#</th><th>原始值</th><th>→</th><th>转换结果</th></tr></thead>
+                    <tbody id="resultBody"></tbody>
+                </table>
+            </div>
+            <div class="stats-bar" id="statsBar"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // 月份映射
+    const MONTHS = {
+        'jan': 1, 'january': 1, '一月': 1, '1月': 1,
+        'feb': 2, 'february': 2, '二月': 2, '2月': 2,
+        'mar': 3, 'march': 3, '三月': 3, '3月': 3,
+        'apr': 4, 'april': 4, '四月': 4, '4月': 4,
+        'may': 5, '五月': 5, '5月': 5,
+        'jun': 6, 'june': 6, '六月': 6, '6月': 6,
+        'jul': 7, 'july': 7, '七月': 7, '7月': 7,
+        'aug': 8, 'august': 8, '八月': 8, '8月': 8,
+        'sep': 9, 'september': 9, '九月': 9, '9月': 9,
+        'oct': 10, 'october': 10, '十月': 10, '10月': 10,
+        'nov': 11, 'november': 11, '十一月': 11, '11月': 11,
+        'dec': 12, 'december': 12, '十二月': 12, '12月': 12
+    };
+
+    function parseMonth(s) {
+        const lower = s.toLowerCase().trim();
+        return MONTHS[lower] || null;
+    }
+
+    function parseDate(str) {
+        str = str.trim();
+        if (!str) return null;
+
+        let year, month, day, hour = 0, minute = 0, second = 0;
+
+        // 格式1: 20 May 2026 23:30 或 20 May 2026
+        let m = str.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            day = parseInt(m[1]); month = parseMonth(m[2]); year = parseInt(m[3]);
+            if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
+            if (month) return { year, month, day, hour, minute, second };
+        }
+
+        // 格式2: 2026-Apr-25 14:49
+        m = str.match(/^(\d{4})[-\/]([A-Za-z]+)[-(\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            year = parseInt(m[1]); month = parseMonth(m[2]); day = parseInt(m[3]);
+            if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
+            if (month) return { year, month, day, hour, minute, second };
+        }
+
+        // 格式3: 2026-04-25 或 2026/04/25 (可能带时间)
+        m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            year = parseInt(m[1]); month = parseInt(m[2]); day = parseInt(m[3]);
+            if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) return { year, month, day, hour, minute, second };
+        }
+
+        // 格式4: 04/25/2026 或 04-25-2026 (美式月/日/年)
+        m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            const a = parseInt(m[1]), b = parseInt(m[2]); year = parseInt(m[3]);
+            if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
+            // 月/日/年 格式
+            if (a >= 1 && a <= 12 && b >= 1 && b <= 31) {
+                month = a; day = b;
+                return { year, month, day, hour, minute, second };
+            }
+        }
+
+        // 格式5: Apr 25, 2026 或 April 25 2026
+        m = str.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            month = parseMonth(m[1]); day = parseInt(m[2]); year = parseInt(m[3]);
+            if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
+            if (month) return { year, month, day, hour, minute, second };
+        }
+
+        // 格式6: 2026年4月25日 (中文)
+        m = str.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            year = parseInt(m[1]); month = parseInt(m[2]); day = parseInt(m[3]);
+            if (m[4] !== undefined) { hour = parseInt(m[4]); minute = parseInt(m[5]); second = parseInt(m[6] || 0); }
+            return { year, month, day, hour, minute, second };
+        }
+
+        // 格式7: 25/04/2026 (日/月/年 - 欧式，只有当第一列>12时才能区分)
+        // 这里不做处理，避免与美式混淆
+
+        return null;
+    }
+
+    function formatDate(d, format, keepTime) {
+        const pad = n => String(n).padStart(2, '0');
+        let result;
+        switch (format) {
+            case 'yyyy/m/d': result = `${d.year}/${d.month}/${d.day}`; break;
+            case 'yyyy/mm/dd': result = `${d.year}/${pad(d.month)}/${pad(d.day)}`; break;
+            case 'yyyy-mm-dd': result = `${d.year}-${pad(d.month)}-${pad(d.day)}`; break;
+            case 'yyyymmdd': result = `${d.year}${pad(d.month)}${pad(d.day)}`; break;
+            case 'mm/dd/yyyy': result = `${pad(d.month)}/${pad(d.day)}/${d.year}`; break;
+            case 'original': result = `${d.year}-${pad(d.month)}-${pad(d.day)}`; break;
+            default: result = `${d.year}/${d.month}/${d.day}`;
+        }
+        if (keepTime) {
+            result += ` ${pad(d.hour)}:${pad(d.minute)}:${pad(d.second)}`;
+        }
+        return result;
+    }
+
+    let results = [];
+
+    function convert() {
+        const text = document.getElementById('inputBox').value.trim();
+        if (!text) { showToast('请输入日期'); return; }
+
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        const format = document.getElementById('outputFormat').value;
+        const keepTime = document.getElementById('keepTime').checked;
+
+        results = [];
+        let ok = 0, fail = 0;
+
+        lines.forEach((line, i) => {
+            const raw = line.trim();
+            if (!raw) return;
+            const parsed = parseDate(raw);
+            if (parsed) {
+                const formatted = formatDate(parsed, format, keepTime);
+                results.push({ idx: i + 1, raw, result: formatted, ok: true });
+                ok++;
+            } else {
+                results.push({ idx: i + 1, raw, result: raw, ok: false });
+                fail++;
+            }
+        });
+
+        renderResults();
+        document.getElementById('resultCard').style.display = 'block';
+        document.getElementById('statsBar').innerHTML = `<span class="ok">✓ 成功: ${ok}</span><span class="fail">✗ 未识别: ${fail}</span><span>总计: ${results.length}</span>`;
+    }
+
+    function renderResults() {
+        const body = document.getElementById('resultBody');
+        body.innerHTML = results.map(r => `
+            <tr>
+                <td>${r.idx}</td>
+                <td>${escHtml(r.raw)}</td>
+                <td>→</td>
+                <td class="${r.ok ? 'ok' : 'err'}">${escHtml(r.result)}${r.ok ? '' : ' (未识别)'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function copyResult() {
+        if (!results.length) return;
+        const text = results.map(r => r.result).join('\n');
+        copyToClipboard(text);
+        showToast('已复制全部结果');
+    }
+
+    function exportCSV() {
+        if (!results.length) return;
+        let csv = '序号,原始值,转换结果\n';
+        results.forEach(r => { csv += `${r.idx},"${r.raw}","${r.result}"\n`; });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `日期转换_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        showToast('已导出 CSV');
+    }
+
+    function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+            document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+    }
+
+    function fillDemo() {
+        document.getElementById('inputBox').value = `20 May 2026 23:30
+2026-Apr-25 14:49
+2026-04-25 14:49:30
+04/25/2026
+Apr 25, 2026
+2026年4月25日`;
+    }
+
+    function clearAll() {
+        document.getElementById('inputBox').value = '';
+        document.getElementById('resultBody').innerHTML = '';
+        document.getElementById('resultCard').style.display = 'none';
+        results = [];
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+    </script>
+</body>
+</html>

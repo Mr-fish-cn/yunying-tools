@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量图片下载器</title>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg: #f8fafc; --surface: #fff; --border: #e2e8f0; --primary: #3b82f6; --success: #22c55e; --error: #ef4444; --text: #1e293b; --text-sec: #64748b; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .subtitle { font-size: 14px; color: var(--text-sec); margin-bottom: 24px; }
+        .card { background: var(--surface); border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid var(--border); }
+        .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+        label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #374151; }
+        textarea { width: 100%; min-height: 140px; padding: 12px; border: 2px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+        textarea:focus { outline: none; border-color: var(--primary); }
+        .hint { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+        .settings { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0; align-items: center; }
+        .settings label { margin: 0; font-weight: 400; font-size: 13px; }
+        .settings select, .settings input[type="number"] { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: #2563eb; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover:not(:disabled) { background: #16a34a; }
+        .btn-outline { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+        .btn-outline:hover:not(:disabled) { background: #e2e8f0; }
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+        .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f8fafc; font-weight: 600; color: var(--text-sec); font-size: 12px; }
+        tr:last-child td { border-bottom: none; }
+        .col-n { width: 40px; text-align: center; }
+        .col-status { width: 80px; }
+        .col-action { width: 60px; }
+        .badge { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 500; border-radius: 10px; }
+        .badge-pending { background: #f1f5f9; color: #94a3b8; }
+        .badge-downloading { background: #dbeafe; color: #2563eb; }
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-error { background: #fee2e2; color: #dc2626; }
+        .icon-btn { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; border-radius: 4px; }
+        .icon-btn:hover { color: var(--primary); background: #eff6ff; }
+        .icon-btn.del:hover { color: var(--error); background: #fef2f2; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .progress-header span:last-child { color: var(--primary); font-weight: 600; }
+        .bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
+        .bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #60a5fa); border-radius: 4px; width: 0%; transition: width 0.3s; }
+        .current-item { font-size: 13px; color: var(--text-sec); margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .result-summary { text-align: center; padding: 20px 0; }
+        .result-summary p { font-size: 16px; margin-bottom: 8px; }
+        .result-summary .ok { color: var(--success); }
+        .result-summary .fail { color: var(--error); }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📷 批量图片下载器</h1>
+        <p class="subtitle">粘贴表格数据，批量下载网络图片</p>
+
+        <div class="card">
+            <label>粘贴数据（名称 + URL，支持 Tab / 逗号 / 分号分隔）</label>
+            <textarea id="pasteArea" placeholder="图片1	https://example.com/image1.jpg
+图片2	https://example.com/image2.png
+图片3	https://example.com/image3.webp"></textarea>
+            <div class="hint">第一列：文件名（不含扩展名自动识别）| 第二列：图片URL</div>
+
+            <div class="settings">
+                <label>下载方式：</label>
+                <select id="downloadMode">
+                    <option value="zip">打包ZIP下载</option>
+                    <option value="individual">逐个下载</option>
+                </select>
+                <label>并发数：</label>
+                <input type="number" id="concurrency" value="3" min="1" max="10" style="width:60px">
+                <label>间隔(ms)：</label>
+                <input type="number" id="delay" value="200" min="0" max="5000" step="100" style="width:70px">
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" id="parseBtn" disabled>解析数据</button>
+                <button class="btn btn-outline" onclick="fillDemo()">填充示例</button>
+                <button class="btn btn-outline" onclick="clearAll()">清空</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="previewSection">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span class="card-title">数据预览</span>
+                <span id="dataCount" style="font-size:13px;color:#64748b"></span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th class="col-n">#</th><th>名称</th><th>URL</th><th class="col-status">状态</th><th class="col-action"></th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success" id="downloadBtn">⬇ 开始下载</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="progressSection">
+            <div class="progress-header">
+                <span id="progressText">准备中...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="bar"><div id="progressBar" class="bar-fill"></div></div>
+            <div id="currentItem" class="current-item"></div>
+            <button class="btn btn-outline" id="cancelBtn" style="width:100%">取消</button>
+        </div>
+
+        <div class="card hidden" id="resultSection">
+            <div class="result-summary">
+                <p><span id="successCount" class="ok"></span></p>
+                <p><span id="failCount" class="fail"></span></p>
+                <button class="btn btn-primary" onclick="resetAll()" style="margin-top:16px;width:100%">开始新任务</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const $ = id => document.getElementById(id);
+    let imageData = [];
+    let shouldCancel = false;
+
+    $('pasteArea').addEventListener('input', () => { $('parseBtn').disabled = !$('pasteArea').value.trim(); });
+    $('parseBtn').addEventListener('click', parseData);
+    $('downloadBtn').addEventListener('click', startDownload);
+    $('cancelBtn').addEventListener('click', () => { shouldCancel = true; });
+
+    function parseData() {
+        const text = $('pasteArea').value.trim();
+        if (!text) return;
+        const lines = text.split('\n').filter(l => l.trim());
+        imageData = [];
+        let valid = 0, invalid = 0;
+        for (const line of lines) {
+            const parts = line.split(/[\t,;]+/).map(p => p.trim()).filter(p => p);
+            if (parts.length >= 2 && isValidUrl(parts[1])) {
+                imageData.push({ name: parts[0], url: parts[1], status: 'pending' });
+                valid++;
+            } else { invalid++; }
+        }
+        if (!imageData.length) { showToast('未能解析到有效数据'); return; }
+        renderTable();
+        $('dataCount').textContent = `${valid} 条有效${invalid ? `，${invalid} 条无效` : ''}`;
+        $('previewSection').classList.remove('hidden');
+    }
+
+    function isValidUrl(s) { try { new URL(s); return true; } catch { return false; } }
+
+    function renderTable() {
+        $('tableBody').innerHTML = imageData.map((item, i) => `
+            <tr>
+                <td class="col-n">${i + 1}</td>
+                <td title="${esc(item.name)}">${esc(item.name)}</td>
+                <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.url)}">${esc(item.url)}</td>
+                <td><span class="badge badge-${item.status}" id="badge-${i}">${statusText(item.status)}</span></td>
+                <td><button class="icon-btn del" onclick="deleteRow(${i})" title="删除">✕</button></td>
+            </tr>`).join('');
+    }
+
+    function statusText(s) { return { pending: '等待', downloading: '下载中', success: '成功', error: '失败' }[s] || s; }
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function deleteRow(i) {
+        imageData.splice(i, 1);
+        if (!imageData.length) $('previewSection').classList.add('hidden');
+        else { renderTable(); $('dataCount').textContent = `${imageData.length} 条数据`; }
+    }
+
+    async function startDownload() {
+        if (!imageData.length) return;
+        shouldCancel = false;
+        const mode = $('downloadMode').value;
+        const concurrency = parseInt($('concurrency').value) || 3;
+        const delay = parseInt($('delay').value) || 200;
+
+        $('previewSection').classList.add('hidden');
+        $('progressSection').classList.remove('hidden');
+        $('resultSection').classList.add('hidden');
+
+        let ok = 0, fail = 0;
+        const zip = mode === 'zip' ? new JSZip() : null;
+        const errors = [];
+
+        // 并发控制
+        const queue = [...imageData.keys()];
+        const workers = [];
+
+        for (let w = 0; w < Math.min(concurrency, queue.length); w++) {
+            workers.push((async () => {
+                while (queue.length && !shouldCancel) {
+                    const idx = queue.shift();
+                    const item = imageData[idx];
+                    item.status = 'downloading';
+                    updateBadge(idx);
+                    $('currentItem').textContent = `正在下载: ${item.name}`;
+                    updateProgress(ok + fail, imageData.length);
+
+                    try {
+                        const blob = await fetchImage(item.url);
+                        if (shouldCancel) break;
+                        const ext = getExt(item.url, blob.type);
+                        if (zip) {
+                            zip.file(item.name + ext, blob);
+                        } else {
+                            triggerDownload(blob, item.name + ext);
+                            await sleep(delay);
+                        }
+                        item.status = 'success';
+                        ok++;
+                    } catch (e) {
+                        item.status = 'error';
+                        errors.push({ name: item.name, error: e.message });
+                        fail++;
+                    }
+                    updateBadge(idx);
+                    updateProgress(ok + fail, imageData.length);
+                }
+            })());
+        }
+
+        await Promise.all(workers);
+
+        $('progressSection').classList.add('hidden');
+        $('resultSection').classList.remove('hidden');
+        $('successCount').textContent = `✓ 下载成功: ${ok} 张`;
+        $('failCount').textContent = fail > 0 ? `✗ 下载失败: ${fail} 张` : '';
+
+        if (zip && ok > 0) {
+            const content = await zip.generateAsync({ type: 'blob' });
+            triggerDownload(content, `图片批量下载_${timestamp()}.zip`);
+        }
+
+        if (errors.length) {
+            console.log('失败的图片:', errors);
+        }
+    }
+
+    async function fetchImage(url) {
+        const resp = await fetch(url, { mode: 'cors', credentials: 'omit' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return await resp.blob();
+    }
+
+    function triggerDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    function getExt(url, mime) {
+        const mimeMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp', 'image/svg+xml': '.svg', 'image/bmp': '.bmp' };
+        if (mimeMap[mime]) return mimeMap[mime];
+        try {
+            const path = new URL(url).pathname;
+            const m = path.match(/\.[a-z]{2,4}$/i);
+            return m ? m[0].toLowerCase() : '.jpg';
+        } catch { return '.jpg'; }
+    }
+
+    function updateBadge(idx) {
+        const el = document.getElementById(`badge-${idx}`);
+        if (el) { el.className = `badge badge-${imageData[idx].status}`; el.textContent = statusText(imageData[idx].status); }
+    }
+
+    function updateProgress(done, total) {
+        const pct = Math.round(done / total * 100);
+        $('progressBar').style.width = pct + '%';
+        $('progressPercent').textContent = pct + '%';
+        $('progressText').textContent = `已完成 ${done}/${total}`;
+    }
+
+    function timestamp() { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`; }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function fillDemo() {
+        $('pasteArea').value = `商品图1	https://picsum.photos/200/300?random=1
+商品图2	https://picsum.photos/200/300?random=2
+商品图3	https://picsum.photos/200/300?random=3`;
+        $('parseBtn').disabled = false;
+    }
+
+    function clearAll() {
+        $('pasteArea').value = '';
+        imageData = [];
+        $('parseBtn').disabled = true;
+        $('previewSection').classList.add('hidden');
+        $('progressSection').classList.add('hidden');
+        $('resultSection').classList.add('hidden');
+    }
+
+    function resetAll() { clearAll(); }
+
+    function showToast(msg) {
+        const t = $('toast'); t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+    </script>
+</body>
+</html>

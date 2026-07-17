@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>号码编码器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .container { background: #fff; border-radius: 20px; padding: 40px; width: 100%; max-width: 600px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+        h1 { color: #333; text-align: center; margin-bottom: 8px; font-size: 24px; }
+        .subtitle { color: #999; text-align: center; margin-bottom: 30px; font-size: 14px; }
+        .settings { display: flex; gap: 15px; margin-bottom: 25px; align-items: center; flex-wrap: wrap; }
+        .settings label { color: #666; font-size: 14px; }
+        .settings input[type="number"] { width: 100px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa; color: #333; font-size: 14px; text-align: center; }
+        .settings input:focus { outline: none; border-color: #4a90d9; background: #fff; }
+        .settings select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa; color: #333; font-size: 14px; }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-bottom: 12px; }
+        .btn-primary { background: linear-gradient(135deg, #4a90d9, #357abd); color: #fff; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(74,144,217,0.3); }
+        .btn-secondary { background: #f0f2f5; color: #666; border: 1px solid #e0e0e0; }
+        .btn-secondary:hover { background: #e8eaed; color: #333; }
+        .btn-row { display: flex; gap: 10px; }
+        .btn-row .btn { flex: 1; }
+        .result-area { margin-top: 20px; background: #f8f9fa; border: 1px solid #eee; border-radius: 12px; padding: 20px; min-height: 120px; max-height: 400px; overflow-y: auto; }
+        .result-item { font-family: 'Courier New', monospace; font-size: 16px; color: #2c3e50; padding: 8px 0; border-bottom: 1px solid #eee; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+        .result-item:last-child { border-bottom: none; }
+        .result-item .idx { color: #bbb; font-size: 12px; min-width: 36px; }
+        .result-item .num { flex: 1; text-align: center; }
+        .copy-btn { background: #e8f0fe; border: none; color: #4a90d9; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .copy-btn:hover { background: #d2e3fc; color: #357abd; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #4caf50; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: #ef4444; }
+        .stats { text-align: center; color: #10b981; font-size: 13px; margin-top: 12px; min-height: 20px; }
+        .duplicate-warn { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 号码编码器</h1>
+        <p class="subtitle">生成不重复的编码号码</p>
+
+        <div class="settings">
+            <label>前缀：</label>
+            <input type="text" id="prefix" value="612" style="width:80px" maxlength="10">
+            <label>位数：</label>
+            <input type="number" id="digits" value="17" min="1" max="30" style="width:60px">
+            <label>数量：</label>
+            <input type="number" id="count" value="10" min="1" max="10000">
+        </div>
+
+        <button class="btn btn-primary" onclick="generate()">生成号码</button>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="copyAll()">📋 复制全部</button>
+            <button class="btn btn-secondary" onclick="exportCSV()">💾 导出CSV</button>
+        </div>
+
+        <div class="result-area" id="results">
+            <p style="color:#bbb;text-align:center;padding:40px 0;">点击"生成号码"开始</p>
+        </div>
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentNumbers = [];
+
+        function generateNumber(prefix, totalDigits) {
+            const randomLen = totalDigits - prefix.length;
+            if (randomLen <= 0) return prefix;
+            let num = prefix;
+            for (let i = 0; i < randomLen; i++) {
+                num += Math.floor(Math.random() * 10);
+            }
+            return num;
+        }
+
+        function generate() {
+            const prefix = document.getElementById('prefix').value || '';
+            const totalDigits = parseInt(document.getElementById('digits').value) || 17;
+            const count = parseInt(document.getElementById('count').value) || 10;
+            const maxCount = Math.min(count, 10000);
+
+            if (prefix.length >= totalDigits) {
+                showToast('位数必须大于前缀长度', true);
+                return;
+            }
+
+            // 理论最大不重复数量
+            const randomLen = totalDigits - prefix.length;
+            const maxPossible = Math.pow(10, randomLen);
+            if (maxCount > maxPossible) {
+                showToast(`前缀"${prefix}"+ ${randomLen}位随机数最多生成 ${maxPossible} 个不重复号码`, true);
+                return;
+            }
+
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+
+            const uniqueNumbers = new Set();
+            let attempts = 0;
+            const maxAttempts = maxCount * 20;
+            
+            while (uniqueNumbers.size < maxCount && attempts < maxAttempts) {
+                uniqueNumbers.add(generateNumber(prefix, totalDigits));
+                attempts++;
+            }
+            
+            currentNumbers = Array.from(uniqueNumbers);
+
+            // 验证不重复
+            const isUnique = new Set(currentNumbers).size === currentNumbers.length;
+
+            let html = '';
+            currentNumbers.forEach((num, i) => {
+                html += `<div class="result-item">
+                    <span class="idx">${i + 1}</span>
+                    <span class="num">${num}</span>
+                    <button class="copy-btn" onclick="copyOne('${num}')">复制</button>
+                </div>`;
+            });
+            results.innerHTML = html;
+
+            if (!isUnique) {
+                stats.innerHTML = `<span class="duplicate-warn">⚠️ 存在重复，请重新生成</span>`;
+            } else if (attempts >= maxAttempts) {
+                stats.innerHTML = `<span class="duplicate-warn">⚠️ 仅生成 ${currentNumbers.length}/${maxCount} 个（随机空间不足）</span>`;
+            } else {
+                stats.textContent = `✓ 已生成 ${currentNumbers.length} 个不重复号码（尝试 ${attempts} 次）`;
+            }
+            showToast(`已生成 ${currentNumbers.length} 个号码`);
+        }
+
+        function copyOne(num) {
+            copyToClipboard(num);
+            showToast('已复制: ' + num);
+        }
+
+        function copyAll() {
+            if (!currentNumbers.length) { showToast('请先生成号码', true); return; }
+            copyToClipboard(currentNumbers.join('\n'));
+            showToast(`已复制全部 ${currentNumbers.length} 个号码`);
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+        }
+
+        function exportCSV() {
+            if (!currentNumbers.length) { showToast('请先生成号码', true); return; }
+            const prefix = document.getElementById('prefix').value || '';
+            let csv = '序号,号码\n';
+            currentNumbers.forEach((num, i) => { csv += (i + 1) + ',' + num + '\n'; });
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `编码号码_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('已导出 CSV');
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>

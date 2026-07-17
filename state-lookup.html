@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美国州分区查询</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f1f5f9; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; padding: 20px; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; height: calc(100vh - 40px); }
+        .title-box { text-align: center; padding: 14px; background: #2563eb; color: #fff; border-radius: 10px; font-size: 20px; font-weight: 700; }
+        .area-desc { display: flex; gap: 20px; justify-content: center; padding: 10px; background: #fff; border-radius: 8px; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .area-desc span { padding: 4px 12px; border-radius: 6px; }
+        .west { background: #e0f2fe; color: #0369a1; font-weight: 600; }
+        .central { background: #fef9c3; color: #a16207; font-weight: 600; }
+        .east { background: #dcfce7; color: #15803d; font-weight: 600; }
+        .unknown { background: #fee2e2; color: #dc2626; font-weight: 600; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+        button:hover { opacity: 0.85; transform: translateY(-1px); }
+        .btn-run { background: #2563eb; color: #fff; }
+        .btn-demo { background: #10b981; color: #fff; }
+        .btn-clear { background: #6b7280; color: #fff; }
+        .btn-copy { background: #f97316; color: #fff; }
+        .btn-export { background: #8b5cf6; color: #fff; }
+        .btn-dedup { background: #0ea5e9; color: #fff; }
+        .content-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; min-height: 0; }
+        .card { background: #fff; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card h3 { font-size: 15px; color: #1f2937; }
+        .card-header { display: flex; align-items: center; justify-content: space-between; }
+        textarea { flex: 1; resize: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px; font-size: 14px; line-height: 1.6; min-height: 0; }
+        textarea:focus { outline: 2px solid #2563eb; border-color: transparent; }
+        .tip-text { font-size: 12px; color: #64748b; }
+        .copy-tip { color: #10b981; height: 18px; font-size: 13px; }
+        .stats { display: flex; gap: 12px; font-size: 12px; flex-wrap: wrap; }
+        .stats span { padding: 2px 8px; border-radius: 10px; }
+        .stat-total { background: #f1f5f9; color: #374151; }
+        .stat-west { background: #e0f2fe; color: #0369a1; }
+        .stat-central { background: #fef9c3; color: #a16207; }
+        .stat-east { background: #dcfce7; color: #15803d; }
+        .stat-unknown { background: #fee2e2; color: #dc2626; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        @media (max-width: 768px) { .content-wrap { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title-box">🇺🇸 美国州批量分区查询（美东 / 美中 / 美西）</div>
+
+        <div class="area-desc">
+            <span class="west">■ 美西：西海岸各州</span>
+            <span class="central">■ 美中：中部内陆州</span>
+            <span class="east">■ 美东：东部沿海州</span>
+            <span class="unknown">■ 未知：无法识别</span>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-demo" onclick="fillDemo()">填充测试示例</button>
+            <button class="btn-clear" onclick="clearAll()">清空全部</button>
+            <button class="btn-run" onclick="startCalc()">执行批量分区匹配</button>
+            <button class="btn-dedup" onclick="dedupInput()">输入去重</button>
+            <button class="btn-copy" onclick="copyResult()">一键复制输出结果</button>
+            <button class="btn-export" onclick="exportCSV()">导出CSV</button>
+        </div>
+
+        <div class="content-wrap">
+            <div class="card">
+                <div class="card-header">
+                    <h3>输入区</h3>
+                    <span id="inputCount" class="tip-text">0 行</span>
+                </div>
+                <div class="tip-text">每行1个州，支持缩写/全称/大小写混合，如：CA / ca / California / NORTH CAROLINA</div>
+                <textarea id="inputBox" placeholder="请粘贴或输入州名，一行一个：
+CA
+NY
+TEXAS
+NORTH CAROLINA"></textarea>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>输出结果</h3>
+                    <span id="outputCount" class="tip-text"></span>
+                </div>
+                <div class="tip-text">复制后粘贴到Excel自动分两列（Tab分隔），未知州以红色标记</div>
+                <div id="statsArea" class="stats" style="display:none"></div>
+                <textarea id="outputBox" readonly style="background:#fafafa"></textarea>
+                <div class="copy-tip" id="copyTip"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const stateDict = {
+        // 美西
+        "ak": "美西", "alaska": "美西",
+        "az": "美西", "arizona": "美西",
+        "ca": "美西", "california": "美西",
+        "co": "美西", "colorado": "美西",
+        "hi": "美西", "hawaii": "美西",
+        "id": "美西", "idaho": "美西",
+        "mt": "美西", "montana": "美西",
+        "nv": "美西", "nevada": "美西",
+        "nm": "美西", "new mexico": "美西", "newmexico": "美西",
+        "or": "美西", "oregon": "美西",
+        "ut": "美西", "utah": "美西",
+        "wa": "美西", "washington": "美西",
+        "wy": "美西", "wyoming": "美西",
+        // 美中
+        "al": "美中", "alabama": "美中",
+        "ar": "美中", "arkansas": "美中",
+        "ia": "美中", "iowa": "美中",
+        "il": "美中", "illinois": "美中",
+        "in": "美中", "indiana": "美中",
+        "ks": "美中", "kansas": "美中",
+        "la": "美中", "louisiana": "美中",
+        "mn": "美中", "minnesota": "美中",
+        "mo": "美中", "missouri": "美中",
+        "ms": "美中", "mississippi": "美中",
+        "nd": "美中", "north dakota": "美中", "northdakota": "美中",
+        "ne": "美中", "nebraska": "美中",
+        "ok": "美中", "oklahoma": "美中",
+        "sd": "美中", "south dakota": "美中", "southdakota": "美中",
+        "tx": "美中", "texas": "美中",
+        "wi": "美中", "wisconsin": "美中",
+        // 美东
+        "ct": "美东", "connecticut": "美东",
+        "de": "美东", "delaware": "美东",
+        "fl": "美东", "florida": "美东",
+        "ga": "美东", "georgia": "美东",
+        "ky": "美东", "kentucky": "美东",
+        "ma": "美东", "massachusetts": "美东",
+        "md": "美东", "maryland": "美东",
+        "me": "美东", "maine": "美东",
+        "mi": "美东", "michigan": "美东",
+        "nc": "美东", "north carolina": "美东", "northcarolina": "美东",
+        "nh": "美东", "new hampshire": "美东", "newhampshire": "美东",
+        "nj": "美东", "new jersey": "美东", "newjersey": "美东",
+        "ny": "美东", "new york": "美东", "newyork": "美东",
+        "oh": "美东", "ohio": "美东",
+        "pa": "美东", "pennsylvania": "美东",
+        "ri": "美东", "rhode island": "美东", "rhodeisland": "美东",
+        "sc": "美东", "south carolina": "美东", "southcarolina": "美东",
+        "tn": "美东", "tennessee": "美东",
+        "va": "美东", "virginia": "美东",
+        "vt": "美东", "vermont": "美东",
+        "wv": "美东", "west virginia": "美东", "westvirginia": "美东"
+    };
+
+    // 反向映射：缩写 → 全称
+    const abbrToFull = {
+        "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California",
+        "CO":"Colorado","CT":"Connecticut","DE":"Delaware","FL":"Florida","GA":"Georgia",
+        "HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+        "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland",
+        "MA":"Massachusetts","MI":"Michigan","MN":"Minnesota","MS":"Mississippi","MO":"Missouri",
+        "MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire","NJ":"New Jersey",
+        "NM":"New Mexico","NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio",
+        "OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina",
+        "SD":"South Dakota","TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont",
+        "VA":"Virginia","WA":"Washington","WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming"
+    };
+
+    const inputBox = document.getElementById('inputBox');
+    const outputBox = document.getElementById('outputBox');
+    const copyTip = document.getElementById('copyTip');
+    const statsArea = document.getElementById('statsArea');
+
+    inputBox.addEventListener('input', () => {
+        const lines = inputBox.value.trim().split('\n').filter(l => l.trim());
+        document.getElementById('inputCount').textContent = lines.length + ' 行';
+    });
+
+    function startCalc() {
+        copyTip.textContent = '';
+        const rawText = inputBox.value.trim();
+        if (!rawText) { outputBox.value = '请先输入州名称！'; return; }
+
+        let lines = rawText.split(/\r?\n/).filter(l => l.trim());
+        let resultArr = [];
+        let counts = { '美西': 0, '美中': 0, '美东': 0, '未知': 0 };
+
+        lines.forEach(item => {
+            const rawVal = item.trim();
+            const lowerVal = rawVal.toLowerCase();
+            const area = stateDict[lowerVal] || null;
+            const displayArea = area || '❓ 未知';
+            if (area) counts[area]++; else counts['未知']++;
+            resultArr.push(`${rawVal}\t${displayArea}`);
+        });
+
+        outputBox.value = resultArr.join('\n');
+        const total = lines.length;
+        document.getElementById('outputCount').textContent = `${total} 条结果`;
+        statsArea.style.display = 'flex';
+        statsArea.innerHTML = `
+            <span class="stat-total">总计: ${total}</span>
+            <span class="stat-west">美西: ${counts['美西']}</span>
+            <span class="stat-central">美中: ${counts['美中']}</span>
+            <span class="stat-east">美东: ${counts['美东']}</span>
+            ${counts['未知'] > 0 ? `<span class="stat-unknown">未知: ${counts['未知']}</span>` : ''}
+        `;
+    }
+
+    function dedupInput() {
+        const rawText = inputBox.value.trim();
+        if (!rawText) return;
+        const lines = rawText.split(/\r?\n/).filter(l => l.trim());
+        const seen = new Set();
+        const unique = [];
+        let removed = 0;
+        for (const line of lines) {
+            const key = line.trim().toLowerCase();
+            if (!seen.has(key)) { seen.add(key); unique.push(line.trim()); }
+            else removed++;
+        }
+        inputBox.value = unique.join('\n');
+        document.getElementById('inputCount').textContent = unique.length + ' 行';
+        showToast(`去重完成，移除 ${removed} 条重复项`);
+    }
+
+    async function copyResult() {
+        const text = outputBox.value;
+        if (!text) { copyTip.textContent = '暂无可复制内容！'; return; }
+        try {
+            await navigator.clipboard.writeText(text);
+            copyTip.textContent = '✅ 复制成功！粘贴到Excel自动分两列';
+        } catch {
+            outputBox.select();
+            document.execCommand('copy');
+            copyTip.textContent = '✅ 复制成功！';
+        }
+    }
+
+    function exportCSV() {
+        const text = outputBox.value;
+        if (!text) { showToast('请先执行查询'); return; }
+        let csv = '州名,所属区域\n';
+        text.split('\n').forEach(line => {
+            const parts = line.split('\t');
+            csv += `"${parts[0]}","${parts[1] || ''}"\n`;
+        });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `州分区查询_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        showToast('已导出 CSV');
+    }
+
+    function fillDemo() {
+        inputBox.value = `CONNECTICUT
+NORTH CAROLINA
+MASSACHUSETTS
+ILLINOIS
+GEORGIA
+CA
+TEXAS
+WASHINGTON
+XY`;
+        outputBox.value = '';
+        copyTip.textContent = '';
+        statsArea.style.display = 'none';
+        document.getElementById('inputCount').textContent = '9 行';
+    }
+
+    function clearAll() {
+        inputBox.value = '';
+        outputBox.value = '';
+        copyTip.textContent = '';
+        statsArea.style.display = 'none';
+        document.getElementById('inputCount').textContent = '0 行';
+        document.getElementById('outputCount').textContent = '';
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+    </script>
+</body>
+</html>
