@@ -195,6 +195,15 @@
                 </div>
             </div>
 
+            <!-- 产品名称 -->
+            <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px">
+                <div class="input-group" style="flex:1">
+                    <label>产品名称 <span style="color:#94a3b8;font-weight:400">(可选，手动输入或从产品库选择)</span></label>
+                    <input type="text" id="sName" placeholder="输入产品名称..." oninput="calcSingle()">
+                </div>
+                <button class="btn btn-blue btn-sm" style="margin-bottom:1px;white-space:nowrap" onclick="pickProductForSingle()">📁 从产品库选择</button>
+            </div>
+
             <!-- 基础输入 -->
             <div class="input-row">
                 <div class="input-group">
@@ -281,6 +290,9 @@
                     <div style="font-size:14px;font-weight:600;margin-bottom:10px">📊 利润结果</div>
                     <div class="result-grid" id="resultGrid"></div>
                     <div id="costDetail"></div>
+                    <div class="btn-row" style="margin-top:12px">
+                        <button class="btn btn-green btn-sm" onclick="saveToCalcRecords()">💾 保存到计算记录</button>
+                    </div>
                 </div>
             </div>
 
@@ -302,10 +314,11 @@
             </div>
         </div>
 
-        <!-- ===== Tabs: 批量 / 产品库 / 物流规则 / 固定参数 ===== -->
+        <!-- ===== Tabs: 批量 / 产品库 / 计算记录 / 物流规则 / 固定参数 ===== -->
         <div class="tabs">
             <button class="active" onclick="switchTab('batch')">📊 批量计算</button>
             <button onclick="switchTab('library')">📁 产品库</button>
+            <button onclick="switchTab('records')">📝 计算记录</button>
             <button onclick="switchTab('logistics')">🚚 物流规则</button>
             <button onclick="switchTab('fixed')">💲 国内固定参数</button>
         </div>
@@ -367,6 +380,29 @@
                     </div>
                 </div>
                 <div class="lib-grid" id="libGrid"></div>
+            </div>
+        </div>
+
+        <!-- 计算记录 -->
+        <div id="tab-records" class="tab-pane">
+            <div class="card">
+                <div class="card-title"><span class="icon" style="background:#fef3c7">📝</span> 手动计算记录</div>
+                <p class="hint-text" style="margin-bottom:8px">手动计算后点击"保存到计算记录"，结果会在此处汇总。支持导出CSV。</p>
+                <div class="btn-row" style="margin-bottom:12px">
+                    <button class="btn btn-green btn-sm" onclick="exportCalcRecordsCSV()">💾 导出CSV</button>
+                    <button class="btn btn-gray btn-sm" onclick="copyCalcRecords()">📋 复制表格</button>
+                    <button class="btn btn-red btn-sm" onclick="clearCalcRecords()">🗑 清空全部</button>
+                </div>
+                <div id="calcRecordsSummary" style="font-size:12px;color:var(--gray);margin-bottom:8px"></div>
+                <div class="table-wrap">
+                    <table class="data-table" id="calcRecordsTable">
+                        <thead><tr>
+                            <th>#</th><th>时间</th><th>产品名称</th><th>工厂</th><th>模式</th><th>成本¥</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$/件</th><th>总收入¥</th><th>总成本¥</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th><th>操作</th>
+                        </tr></thead>
+                        <tbody id="calcRecordsBody"></tbody>
+                    </table>
+                </div>
+                <div id="calcRecordsEmpty" style="text-align:center;padding:30px;color:var(--gray);font-size:13px">暂无记录，手动计算后点击"保存到计算记录"</div>
             </div>
         </div>
 
@@ -499,7 +535,8 @@
         ],
         intlRates: [{min:0,max:200,price:8},{min:200,max:500,price:7},{min:500,max:1000,price:6},{min:1000,max:99999,price:5}],
         library: [],
-        batchItems: []
+        batchItems: [],
+        calcRecords: []
     };
 
     // ============ UTIL ============
@@ -836,6 +873,152 @@
         $('importPreview').style.display = 'none';
     }
 
+    // ============ SINGLE PRODUCT PICKER ============
+    function pickProductForSingle(){
+        if(!S.library.length){toast('请先在"产品库"中添加产品');return;}
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay show';
+        modal.innerHTML = `<div class="modal">
+            <h3>从产品库选择</h3>
+            <div style="max-height:320px;overflow-y:auto;margin-bottom:12px">
+                ${S.library.map((p,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px">
+                    <input type="radio" name="singlePick" value="${i}" style="accent-color:var(--blue)">
+                    <span style="font-weight:600">${escH(p.name)}</span>
+                    <span style="color:var(--gray);font-size:11px">${p.factory?'🏭'+escH(p.factory)+' · ':''}${p.mode==='overseas'?'海外':'国内'} · ¥${fmt(p.cost)}</span>
+                </label>`).join('')}
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-gray" onclick="this.closest('.modal-overlay').remove()">取消</button>
+                <button class="btn btn-blue" onclick="confirmSinglePick(this)">确认选择</button>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+    function confirmSinglePick(btn){
+        const radio = btn.closest('.modal').querySelector('input[name="singlePick"]:checked');
+        if(!radio){toast('请先选择一个产品');return;}
+        const p = S.library[parseInt(radio.value)];
+        // Fill in product info to single calc fields
+        $('sName').value = p.name;
+        $('sCost').value = p.cost;
+        if(p.mode==='overseas'){
+            setMode('overseas');
+            $('sShipUSD').value = p.shipUSD||0;
+        } else {
+            setMode('domestic');
+            $('sWeight').value = p.weight||0;
+            $('sImgCost').value = p.imgCost||0;
+        }
+        btn.closest('.modal-overlay').remove();
+        calcSingle();
+        toast(`已选择: ${p.name}`);
+    }
+
+    // ============ CALC RECORDS ============
+    function saveToCalcRecords(){
+        const price=V('sPrice'), disc=V('sDiscount'), cost=V('sCost');
+        if(!price||!cost){toast('请先完成计算再保存');return;}
+        const name = $('sName').value.trim() || '未命名产品';
+        const factory = ''; // manual calc doesn't track factory from library
+        // Find matching library product to get factory
+        const libMatch = S.library.find(p=>p.name===name);
+        const f = libMatch ? (libMatch.factory||'') : '';
+
+        let qty = Math.max(1, parseInt($('sQty').value)||1);
+        const hasSub = $('sHasSub').checked;
+        let params = {mode:S.mode, price, disc, cost, qty, hasSub};
+        if(S.mode==='overseas'){params.shipUSD=V('sShipUSD');}
+        else{
+            params.weight=V('sWeight');params.imgCost=V('sImgCost');
+            params.packFee=V('sPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;
+            params.delivFee=V('sDelivFee');params.preList=V('sPreList');
+            const pi=parseInt($('sLastMileProv').value)||0;
+            params.lastMile=getLastMile(pi,params.weight)||0;
+        }
+        const r = calcProfit(params);
+        const now = new Date();
+        const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        S.calcRecords.push({
+            time: ts,
+            name, factory: f,
+            mode: S.mode,
+            cost, price, disc, qty,
+            hasSub,
+            shipUSD: params.shipUSD||0,
+            weight: params.weight||0,
+            imgCost: params.imgCost||0,
+            tp: r.tp, sa: r.sa, subUSD: r.subUSD, lm: r.lm,
+            revenueCNY: r.revenueCNY, totalCostCNY: r.totalCostCNY,
+            preProfit: r.preProfit, afterProfit: r.afterProfit, margin: r.margin
+        });
+        renderCalcRecords();
+        toast('已保存到计算记录');
+    }
+    function renderCalcRecords(){
+        const body = $('calcRecordsBody');
+        const empty = $('calcRecordsEmpty');
+        const summary = $('calcRecordsSummary');
+        if(!S.calcRecords.length){
+            body.innerHTML='';
+            empty.style.display='block';
+            summary.textContent='';
+            $('calcRecordsTable').style.display='none';
+            return;
+        }
+        empty.style.display='none';
+        $('calcRecordsTable').style.display='';
+        let tPre=0,tAfter=0,pCnt=0,lCnt=0;
+        body.innerHTML = S.calcRecords.map((r,i)=>{
+            tPre+=r.preProfit;tAfter+=r.afterProfit;
+            if(r.preProfit>=0)pCnt++;else lCnt++;
+            return `<tr>
+                <td>${i+1}</td>
+                <td style="font-size:11px;color:var(--gray);white-space:nowrap">${r.time}</td>
+                <td style="font-weight:600;text-align:left;padding-left:8px">${escH(r.name)}</td>
+                <td style="font-size:11px;color:var(--gray)">${r.factory?escH(r.factory):'-'}</td>
+                <td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${r.mode==='overseas'?'background:#dbeafe;color:#1d4ed8':'background:#dcfce7;color:#166534'}">${r.mode==='overseas'?'海外':'国内'}</span></td>
+                <td>${fmt(r.cost)}</td>
+                <td>${fmt(r.price)}</td>
+                <td>${r.disc}</td>
+                <td>${r.qty}</td>
+                <td>${$U(r.tp)}</td>
+                <td>${$U(r.sa)}</td>
+                <td style="color:${r.subUSD>0?'var(--green)':'#cbd5e1'}">${r.subUSD>0?$U(r.subUSD):'无'}</td>
+                <td>${r.mode==='domestic'?$U(r.lm):'-'}</td>
+                <td style="color:var(--green);font-weight:600">${$C(r.revenueCNY)}</td>
+                <td style="color:var(--red)">${$C(r.totalCostCNY)}</td>
+                <td style="color:${r.preProfit>=0?'var(--green)':'var(--red)'};font-weight:700">${$C(r.preProfit)}</td>
+                <td style="color:${r.afterProfit>=0?'var(--green)':'var(--red)'};font-weight:600">${$C(r.afterProfit)}</td>
+                <td style="color:${r.margin>=0?'var(--green)':'var(--red)'}">${fmt(r.margin,1)}%</td>
+                <td><button class="btn btn-red btn-sm" style="padding:2px 6px" onclick="deleteCalcRecord(${i})">×</button></td>
+            </tr>`;
+        }).join('');
+        summary.innerHTML=`共 ${S.calcRecords.length} 条 | <span style="color:var(--green)">盈利: ${pCnt}</span> | <span style="color:var(--red)">亏损: ${lCnt}</span> | 总售前: <strong style="color:${tPre>=0?'var(--green)':'var(--red)'}">${$C(tPre)}</strong> | 总售后: <strong style="color:${tAfter>=0?'var(--green)':'var(--red)'}">${$C(tAfter)}</strong>`;
+    }
+    function deleteCalcRecord(i){S.calcRecords.splice(i,1);renderCalcRecords();toast('已删除');}
+    function clearCalcRecords(){
+        if(!S.calcRecords.length){toast('暂无记录');return;}
+        if(!confirm('确定清空所有计算记录？'))return;
+        S.calcRecords=[];renderCalcRecords();toast('已清空');
+    }
+    function exportCalcRecordsCSV(){
+        if(!S.calcRecords.length){toast('暂无记录');return;}
+        let csv='\uFEFF序号,时间,产品名称,工厂,发货模式,采购成本¥,核价$,折扣%,件数,成交价$,销售额$,运补$,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%\n';
+        S.calcRecords.forEach((r,i)=>{
+            csv+=`${i+1},${r.time},"${r.name}","${r.factory||'-'}",${r.mode==='overseas'?'海外工厂':'国内发货'},${r.cost},${fmt(r.price)},${r.disc},${r.qty},${fmt(r.tp)},${fmt(r.sa)},${r.subUSD>0?fmt(r.subUSD):'0'},${r.mode==='domestic'?fmt(r.lm):'0'},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)}\n`;
+        });
+        const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`计算记录_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('已导出CSV');
+    }
+    function copyCalcRecords(){
+        if(!S.calcRecords.length){toast('暂无记录');return;}
+        let t='#\t时间\t产品\t工厂\t模式\t成本¥\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
+        S.calcRecords.forEach((r,i)=>{
+            t+=`${i+1}\t${r.time}\t${r.name}\t${r.factory||'-'}\t${r.mode==='overseas'?'海外':'国内'}\t${fmt(r.cost)}\t${fmt(r.price)}\t${r.disc}\t${r.qty}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.subUSD>0?fmt(r.subUSD):'无'}\t${r.mode==='domestic'?fmt(r.lm):'-'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
+        });
+        const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('已复制到剪贴板');
+    }
+
     // ============ BATCH ============
     function openProductPicker(){
         if(!S.library.length){toast('请先在"产品库"中添加产品');return;}
@@ -981,7 +1164,7 @@
         document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
         document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
         $('tab-'+t).classList.add('active');
-        const labels={batch:'批量',library:'产品库',logistics:'物流',fixed:'固定'};
+        const labels={batch:'批量',library:'产品库',records:'记录',logistics:'物流',fixed:'固定'};
         document.querySelectorAll('.tabs button').forEach(b=>{if(b.textContent.includes(labels[t]))b.classList.add('active');});
     }
     function recalcAll(){calcSingle();recalcBatch();}
@@ -990,6 +1173,7 @@
     renderProviders();
     renderIntlRates();
     renderLibrary();
+    renderCalcRecords();
     </script>
 </body>
 </html>
