@@ -114,16 +114,6 @@
     <div class="category">
         <div class="category-title">📊 数据与物流</div>
         <div class="tools-grid">
-            <a class="tool-card" href="inventory.html">
-                <div class="tool-card-top">
-                    <div class="tool-icon" style="background:#dbeafe;">📦</div>
-                    <div class="tool-info">
-                        <h2>海外仓库存计算器</h2>
-                        <p>入库出库管理 · 库存分析 · 补货建议</p>
-                    </div>
-                </div>
-                <span class="tool-tag">云同步</span>
-            </a>
             <a class="tool-card" href="shipping.html">
                 <div class="tool-card-top">
                     <div class="tool-icon" style="background:#dcfce7;">🚚</div>
@@ -218,5 +208,74 @@
             </a>
         </div>
     </div>
+
+    <div class="category">
+        <div class="category-title">🔒 私密工具</div>
+        <div class="tools-grid">
+            <div class="tool-card" onclick="checkAccess('inventory.html')" style="cursor:pointer;">
+                <div class="tool-card-top">
+                    <div class="tool-icon" style="background:#dbeafe;">📦</div>
+                    <div class="tool-info">
+                        <h2>海外仓库存计算器</h2>
+                        <p>入库出库管理 · 库存分析 · 补货建议</p>
+                    </div>
+                </div>
+                <span class="tool-tag">🔐 需验证</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密码验证弹窗 -->
+    <div id="authModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:white;border-radius:16px;padding:32px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="text-align:center;margin-bottom:24px;">
+                <div style="font-size:48px;margin-bottom:12px;">🔐</div>
+                <h3 style="font-size:18px;color:#1e293b;margin-bottom:6px;">访问需要验证</h3>
+                <p style="font-size:13px;color:#94a3b8;">请输入访问密码</p>
+            </div>
+            <input type="password" id="pwdInput" placeholder="请输入密码" style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:15px;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'" onkeydown="if(event.key==='Enter')verifyPwd()">
+            <div id="pwdError" style="color:#ef4444;font-size:13px;margin-top:8px;display:none;">密码错误，请重试</div>
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button onclick="closeAuth()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;background:white;border-radius:10px;font-size:14px;color:#64748b;cursor:pointer;">取消</button>
+                <button onclick="verifyPwd()" style="flex:1;padding:12px;border:none;background:#6366f1;color:white;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let targetUrl = '';
+        // 密码：shein2026 (Base64编码，简单混淆)
+        const _p = 'c2hlaW4yMDI2';
+        
+        function checkAccess(url) {
+            targetUrl = url;
+            document.getElementById('authModal').style.display = 'flex';
+            document.getElementById('pwdInput').value = '';
+            document.getElementById('pwdError').style.display = 'none';
+            setTimeout(() => document.getElementById('pwdInput').focus(), 100);
+        }
+        
+        function closeAuth() {
+            document.getElementById('authModal').style.display = 'none';
+        }
+        
+        function verifyPwd() {
+            const input = document.getElementById('pwdInput').value;
+            const correct = atob(_p);
+            if (input === correct) {
+                closeAuth();
+                window.location.href = targetUrl;
+            } else {
+                document.getElementById('pwdError').style.display = 'block';
+                document.getElementById('pwdInput').value = '';
+                document.getElementById('pwdInput').focus();
+            }
+        }
+        
+        // 点击遮罩层关闭
+        document.getElementById('authModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAuth();
+        });
+    </script>
 </body>
 </html>
