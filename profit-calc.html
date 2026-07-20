@@ -226,13 +226,36 @@
                 </div>
             </div>
 
-            <!-- 海外工厂：仅运费 -->
+            <!-- 海外工厂：运费(到仓) + 尾程 -->
             <div id="overseasFields">
                 <div class="input-row">
                     <div class="input-group">
-                        <label>单件运费 ($)</label>
+                        <label>到仓运费 ($/件)</label>
                         <input type="number" id="sShipUSD" step="0.01" min="0" placeholder="0.00" oninput="onUsd(this);calcSingle()">
                         <div class="rmb-preview zero" id="sShipUSDRmb">¥0.00</div>
+                    </div>
+                    <div class="input-group">
+                        <label>克重 (g)</label>
+                        <input type="number" id="sWeightOverseas" step="0.1" min="0" placeholder="用于匹配尾程" oninput="calcSingle()">
+                    </div>
+                </div>
+                <div style="margin-top:4px">
+                    <label style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;display:block">尾程物流</label>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <select id="sLastMileModeOverseas" onchange="toggleLastMileOverseas()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+                            <option value="none">不使用尾程</option>
+                            <option value="manual">手动输入</option>
+                            <option value="auto">按克重自动匹配</option>
+                        </select>
+                        <span id="sLastMileManualOverseas" style="display:none">
+                            <input type="number" id="sLastMileManualValOverseas" step="0.01" min="0" placeholder="0.00" style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px" oninput="calcSingle()">
+                            <span style="font-size:11px;color:var(--gray)">$/件</span>
+                        </span>
+                        <span id="sLastMileAutoOverseas" style="display:none;display:none;align-items:center;gap:6px">
+                            <select id="sLastMileProvOverseas" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
+                            <span id="sLastMileInfoOverseas" style="font-size:13px;font-weight:600;color:var(--blue)">未选择</span>
+                        </span>
+                        <span id="sLastMileNoneOverseas" style="font-size:12px;color:var(--gray)">尾程为$0</span>
                     </div>
                 </div>
             </div>
@@ -271,10 +294,20 @@
                     </div>
                 </div>
                 <div style="margin-top:8px">
-                    <label style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;display:block">海外尾程物流（按克重自动匹配）</label>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <select id="sLastMileProv" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
-                        <span id="sLastMileInfo" style="font-size:13px;font-weight:600;color:var(--blue)">未选择</span>
+                    <label style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;display:block">海外尾程物流</label>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <select id="sLastMileMode" onchange="toggleLastMileDomestic()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+                            <option value="auto">按克重自动匹配</option>
+                            <option value="manual">手动输入</option>
+                        </select>
+                        <span id="sLastMileManualDomestic" style="display:none">
+                            <input type="number" id="sLastMileManualVal" step="0.01" min="0" placeholder="0.00" style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px" oninput="calcSingle()">
+                            <span style="font-size:11px;color:var(--gray)">$/件</span>
+                        </span>
+                        <span id="sLastMileAutoDomestic" style="display:flex;align-items:center;gap:6px">
+                            <select id="sLastMileProv" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
+                            <span id="sLastMileInfo" style="font-size:13px;font-weight:600;color:var(--blue)">未选择</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -570,9 +603,9 @@
         let wc, lm, bd;
 
         if (p.mode === 'overseas') {
-            // 海外工厂：成本 = 采购 + 运费×汇率（无作图）
+            // 海外工厂：到仓成本 = 采购 + 到仓运费×汇率
             wc = p.cost + (p.shipUSD||0) * g.rate;
-            lm = 0;
+            lm = p.lastMile||0;  // 尾程单独计算
             bd = { cost: p.cost, ship: p.shipUSD||0, shipRmb: (p.shipUSD||0)*g.rate };
         } else {
             // 国内发货：7项到仓成本
@@ -616,6 +649,21 @@
         $('limitWrap').style.display = t==='tool'?'':'none';
     }
 
+    // ============ LAST MILE TOGGLE ============
+    function toggleLastMileOverseas() {
+        const mode = $('sLastMileModeOverseas').value;
+        $('sLastMileManualOverseas').style.display = mode==='manual' ? '' : 'none';
+        $('sLastMileAutoOverseas').style.display = mode==='auto' ? 'flex' : 'none';
+        $('sLastMileNoneOverseas').style.display = mode==='none' ? '' : 'none';
+        calcSingle();
+    }
+    function toggleLastMileDomestic() {
+        const mode = $('sLastMileMode').value;
+        $('sLastMileManualDomestic').style.display = mode==='manual' ? '' : 'none';
+        $('sLastMileAutoDomestic').style.display = mode==='auto' ? 'flex' : 'none';
+        calcSingle();
+    }
+
     // ============ USD PREVIEW ============
     function onUsd(el) {
         const v = parseFloat(el.value)||0;
@@ -633,16 +681,38 @@
         $('subLabel').textContent = fmt(V('subsidyAmount'));
 
         let p = { mode:S.mode, price, disc, cost, qty, hasSub };
-        if (S.mode==='overseas') { p.shipUSD=V('sShipUSD'); onUsd($('sShipUSD')); }
-        else {
+        if (S.mode==='overseas') {
+            p.shipUSD=V('sShipUSD');
+            onUsd($('sShipUSD'));
+            // 尾程
+            const lmMode = $('sLastMileModeOverseas').value;
+            if(lmMode==='manual') {
+                p.lastMile = V('sLastMileManualValOverseas');
+            } else if(lmMode==='auto') {
+                const w = V('sWeightOverseas');
+                const pi = parseInt($('sLastMileProvOverseas').value)||0;
+                p.lastMile = getLastMile(pi, w)||0;
+                const info=$('sLastMileInfoOverseas');
+                if(p.lastMile>0){info.textContent=`尾程: ${$U(p.lastMile)} (${$C(p.lastMile*(V('exchangeRate')||6.5))})`;info.style.color='var(--blue)';}
+                else{info.textContent='未匹配';info.style.color='var(--red)';}
+            } else {
+                p.lastMile = 0;
+            }
+        } else {
             p.weight=V('sWeight'); p.imgCost=V('sImgCost'); p.intlRate=V('sIntlRate');
             p.packFee=V('sPackFee'); p.fmBase=V('sFmBase'); p.fmWeight=V('fFmWeight')||20;
             p.delivFee=V('sDelivFee'); p.preList=V('sPreList');
-            const pi=parseInt($('sLastMileProv').value)||0;
-            p.lastMile = getLastMile(pi, p.weight)||0;
-            const info=$('sLastMileInfo');
-            if(p.lastMile>0){info.textContent=`尾程: ${$U(p.lastMile)} (${$C(p.lastMile*(V('exchangeRate')||6.5))})`;info.style.color='var(--blue)';}
-            else{info.textContent='未匹配';info.style.color='var(--red)';}
+            // 尾程
+            const lmMode = $('sLastMileMode').value;
+            if(lmMode==='manual') {
+                p.lastMile = V('sLastMileManualVal');
+            } else {
+                const pi=parseInt($('sLastMileProv').value)||0;
+                p.lastMile = getLastMile(pi, p.weight)||0;
+                const info=$('sLastMileInfo');
+                if(p.lastMile>0){info.textContent=`尾程: ${$U(p.lastMile)} (${$C(p.lastMile*(V('exchangeRate')||6.5))})`;info.style.color='var(--blue)';}
+                else{info.textContent='未匹配';info.style.color='var(--red)';}
+            }
         }
         if(!price||!cost){$('resultArea').style.display='none';return;}
         const r = calcProfit(p);
@@ -652,9 +722,8 @@
         let cards = `
             <div class="result-card"><div class="val val-blue">${$U(r.tp)}</div><div class="desc">成交价</div></div>
             <div class="result-card"><div class="val">${$U(r.sa)}</div><div class="desc">销售额(含溢价)</div></div>
-            <div class="result-card"><div class="val ${r.hasSub?'val-green':'val-red'}">${r.hasSub?$U(r.subUSD)+' 有':'无'}</div><div class="desc">运补(每单1次)</div></div>`;
-        if(S.mode==='domestic') cards += `<div class="result-card"><div class="val">${$U(r.lm)}</div><div class="desc">尾程运费/件</div></div>`;
-        cards += `
+            <div class="result-card"><div class="val ${r.hasSub?'val-green':'val-red'}">${r.hasSub?$U(r.subUSD)+' 有':'无'}</div><div class="desc">运补(每单1次)</div></div>
+            <div class="result-card"><div class="val">${$U(r.lm)}</div><div class="desc">尾程运费/件</div></div>
             <div class="result-card"><div class="val val-green">${$C(r.revenueCNY)}</div><div class="desc">总收入</div></div>
             <div class="result-card"><div class="val val-red">${$C(r.totalCostCNY)}</div><div class="desc">总成本</div></div>
             <div class="result-card"><div class="val ${r.preProfit>=0?'val-green':'val-red'}">${$C(r.preProfit)}</div><div class="desc">售前利润</div></div>
@@ -674,15 +743,18 @@
                 <div class="cost-row"><span>头程运费</span><span>¥${fmt(b.firstMile)}</span></div>
                 <div class="cost-row"><span>海外投递</span><span>$${fmt(b.delivFee)} / ¥${fmt(b.delivFee*gp().rate)}</span></div>
                 <div class="cost-row"><span>海外预上网</span><span>¥${fmt(b.preList)}</span></div>
+                <div class="cost-row"><span>合计(到仓)/件</span><span>¥${fmt(r.wc)}</span></div>
                 <div class="cost-row"><span>尾程物流</span><span>$${fmt(r.lm)} / ¥${fmt(r.lm*gp().rate)}</span></div>
-                <div class="cost-row"><span>合计(到仓+尾程)/件</span><span>¥${fmt(r.wc + r.lm*gp().rate)}</span></div>
+                <div class="cost-row"><span>总成本(到仓+尾程)/件</span><span>¥${fmt(r.wc + r.lm*gp().rate)}</span></div>
             </div>`;
         } else {
             $('costDetail').innerHTML = `<div class="cost-box">
-                <div class="title">📋 到仓成本明细 (¥${fmt(r.wc)}/件)</div>
+                <div class="title">📋 成本明细</div>
                 <div class="cost-row"><span>采购成本</span><span>¥${fmt(r.bd.cost)}</span></div>
-                <div class="cost-row"><span>运费</span><span>$${fmt(r.bd.ship)} / ¥${fmt(r.bd.shipRmb)}</span></div>
-                <div class="cost-row"><span>合计</span><span>¥${fmt(r.wc)}/件</span></div>
+                <div class="cost-row"><span>到仓运费</span><span>$${fmt(r.bd.ship)} / ¥${fmt(r.bd.shipRmb)}</span></div>
+                <div class="cost-row"><span>到仓成本/件</span><span>¥${fmt(r.wc)}</span></div>
+                <div class="cost-row"><span>尾程物流</span><span>$${fmt(r.lm)} / ¥${fmt(r.lm*gp().rate)}</span></div>
+                <div class="cost-row"><span>总成本(到仓+尾程)/件</span><span>¥${fmt(r.wc + r.lm*gp().rate)}</span></div>
             </div>`;
         }
     }
@@ -919,7 +991,6 @@
         const price=V('sPrice'), disc=V('sDiscount'), cost=V('sCost');
         if(!price||!cost){toast('请先完成计算再保存');return;}
         const name = $('sName').value.trim() || '未命名产品';
-        const factory = ''; // manual calc doesn't track factory from library
         // Find matching library product to get factory
         const libMatch = S.library.find(p=>p.name===name);
         const f = libMatch ? (libMatch.factory||'') : '';
@@ -927,13 +998,31 @@
         let qty = Math.max(1, parseInt($('sQty').value)||1);
         const hasSub = $('sHasSub').checked;
         let params = {mode:S.mode, price, disc, cost, qty, hasSub};
-        if(S.mode==='overseas'){params.shipUSD=V('sShipUSD');}
-        else{
+        if(S.mode==='overseas'){
+            params.shipUSD=V('sShipUSD');
+            // 尾程
+            const lmMode = $('sLastMileModeOverseas').value;
+            if(lmMode==='manual') {
+                params.lastMile = V('sLastMileManualValOverseas');
+            } else if(lmMode==='auto') {
+                const w = V('sWeightOverseas');
+                const pi = parseInt($('sLastMileProvOverseas').value)||0;
+                params.lastMile = getLastMile(pi, w)||0;
+            } else {
+                params.lastMile = 0;
+            }
+        } else {
             params.weight=V('sWeight');params.imgCost=V('sImgCost');
             params.packFee=V('sPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;
             params.delivFee=V('sDelivFee');params.preList=V('sPreList');
-            const pi=parseInt($('sLastMileProv').value)||0;
-            params.lastMile=getLastMile(pi,params.weight)||0;
+            // 尾程
+            const lmMode = $('sLastMileMode').value;
+            if(lmMode==='manual') {
+                params.lastMile = V('sLastMileManualVal');
+            } else {
+                const pi=parseInt($('sLastMileProv').value)||0;
+                params.lastMile=getLastMile(pi,params.weight)||0;
+            }
         }
         const r = calcProfit(params);
         const now = new Date();
@@ -945,7 +1034,7 @@
             cost, price, disc, qty,
             hasSub,
             shipUSD: params.shipUSD||0,
-            weight: params.weight||0,
+            weight: params.weight||V('sWeightOverseas')||0,
             imgCost: params.imgCost||0,
             tp: r.tp, sa: r.sa, subUSD: r.subUSD, lm: r.lm,
             revenueCNY: r.revenueCNY, totalCostCNY: r.totalCostCNY,
@@ -984,7 +1073,7 @@
                 <td>${$U(r.tp)}</td>
                 <td>${$U(r.sa)}</td>
                 <td style="color:${r.subUSD>0?'var(--green)':'#cbd5e1'}">${r.subUSD>0?$U(r.subUSD):'无'}</td>
-                <td>${r.mode==='domestic'?$U(r.lm):'-'}</td>
+                <td>${r.lm>0?$U(r.lm):'-'}</td>
                 <td style="color:var(--green);font-weight:600">${$C(r.revenueCNY)}</td>
                 <td style="color:var(--red)">${$C(r.totalCostCNY)}</td>
                 <td style="color:${r.preProfit>=0?'var(--green)':'var(--red)'};font-weight:700">${$C(r.preProfit)}</td>
@@ -1005,7 +1094,7 @@
         if(!S.calcRecords.length){toast('暂无记录');return;}
         let csv='\uFEFF序号,时间,产品名称,工厂,发货模式,采购成本¥,核价$,折扣%,件数,成交价$,销售额$,运补$,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%\n';
         S.calcRecords.forEach((r,i)=>{
-            csv+=`${i+1},${r.time},"${r.name}","${r.factory||'-'}",${r.mode==='overseas'?'海外工厂':'国内发货'},${r.cost},${fmt(r.price)},${r.disc},${r.qty},${fmt(r.tp)},${fmt(r.sa)},${r.subUSD>0?fmt(r.subUSD):'0'},${r.mode==='domestic'?fmt(r.lm):'0'},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)}\n`;
+            csv+=`${i+1},${r.time},"${r.name}","${r.factory||'-'}",${r.mode==='overseas'?'海外工厂':'国内发货'},${r.cost},${fmt(r.price)},${r.disc},${r.qty},${fmt(r.tp)},${fmt(r.sa)},${r.subUSD>0?fmt(r.subUSD):'0'},${r.lm>0?fmt(r.lm):'0'},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)}\n`;
         });
         const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`计算记录_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('已导出CSV');
@@ -1014,7 +1103,7 @@
         if(!S.calcRecords.length){toast('暂无记录');return;}
         let t='#\t时间\t产品\t工厂\t模式\t成本¥\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
         S.calcRecords.forEach((r,i)=>{
-            t+=`${i+1}\t${r.time}\t${r.name}\t${r.factory||'-'}\t${r.mode==='overseas'?'海外':'国内'}\t${fmt(r.cost)}\t${fmt(r.price)}\t${r.disc}\t${r.qty}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.subUSD>0?fmt(r.subUSD):'无'}\t${r.mode==='domestic'?fmt(r.lm):'-'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
+            t+=`${i+1}\t${r.time}\t${r.name}\t${r.factory||'-'}\t${r.mode==='overseas'?'海外':'国内'}\t${fmt(r.cost)}\t${fmt(r.price)}\t${r.disc}\t${r.qty}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.subUSD>0?fmt(r.subUSD):'无'}\t${r.lm>0?fmt(r.lm):'-'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
         });
         const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('已复制到剪贴板');
     }
@@ -1049,8 +1138,11 @@
             const price=p.price||gPrice, disc=p.disc||gDisc;
             if(!price||!p.cost) return `<tr><td>${escH(p.name)}</td><td colspan="16" style="color:#94a3b8">请填写核价</td></tr>`;
             let params={mode:p.mode,price,disc,cost:p.cost,qty:p.qty||1,hasSub};
-            if(p.mode==='overseas'){params.shipUSD=p.shipUSD||0;}
-            else{
+            if(p.mode==='overseas'){
+                params.shipUSD=p.shipUSD||0;
+                // 海外工厂尾程：按克重匹配
+                params.lastMile = p.weight>0 ? (getLastMile(0,p.weight)||0) : 0;
+            } else {
                 params.weight=p.weight||0;params.imgCost=p.imgCost||0;
                 params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;
                 params.delivFee=V('fDelivFee');params.preList=V('fPreList');
@@ -1071,7 +1163,7 @@
                 <td><input type="number" value="${p.qty||1}" onchange="S.batchItems[${i}].qty=+this.value;recalcBatch()" style="width:45px" min="1"></td>
                 <td>${$U(r.tp)}</td><td>${$U(r.sa)}</td>
                 <td style="color:${r.hasSub?'var(--green)':'#cbd5e1'}">${r.hasSub?$U(r.subUSD):'无'}</td>
-                <td>${p.mode==='domestic'?$U(r.lm):'-'}</td>
+                <td>${r.lm>0?$U(r.lm):'-'}</td>
                 <td style="color:var(--green);font-weight:600">${$C(r.revenueCNY)}</td>
                 <td style="color:var(--red)">${$C(r.totalCostCNY)}</td>
                 <td style="color:${r.preProfit>=0?'var(--green)':'var(--red)'};font-weight:700">${$C(r.preProfit)}</td>
@@ -1091,10 +1183,14 @@
             const price=p.price||gP,disc=p.disc||gD;
             if(!price||!p.cost)return;
             let params={mode:p.mode,price,disc,cost:p.cost,qty:p.qty||1,hasSub};
-            if(p.mode==='overseas')params.shipUSD=p.shipUSD||0;
-            else{params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');params.lastMile=getLastMile(0,params.weight)||0;}
+            if(p.mode==='overseas'){
+                params.shipUSD=p.shipUSD||0;
+                params.lastMile = p.weight>0 ? (getLastMile(0,p.weight)||0) : 0;
+            } else {
+                params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');params.lastMile=getLastMile(0,params.weight)||0;
+            }
             const r=calcProfit(params);
-            t+=`${p.name}\t${p.factory||'-'}\t${p.mode==='overseas'?'海外工厂':'国内发货'}\t${p.cost}\t${p.weight||0}\t${fmt(r.wc)}\t${fmt(price)}\t${disc}\t${p.qty||1}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.hasSub?fmt(r.subUSD):'0'}\t${p.mode==='domestic'?fmt(r.lm):'0'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
+            t+=`${p.name}\t${p.factory||'-'}\t${p.mode==='overseas'?'海外工厂':'国内发货'}\t${p.cost}\t${p.weight||0}\t${fmt(r.wc)}\t${fmt(price)}\t${disc}\t${p.qty||1}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.hasSub?fmt(r.subUSD):'0'}\t${r.lm>0?fmt(r.lm):'0'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
         });
         const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('已复制到剪贴板');
     }
@@ -1110,14 +1206,15 @@
             let formula='';
             if(p.mode==='overseas'){
                 params.shipUSD=p.shipUSD||0;
-                formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 销售额=成交价×(1+${(V('premiumRate')||25)}%)=${fmt(price*disc/100*(1+(V('premiumRate')||25)/100))}; 到仓=采购¥${p.cost}+运费$${p.shipUSD||0}×${V('exchangeRate')||6.5}; 运补=${hasSub&&price*disc/100*(1+(V('premiumRate')||25)/100)<=V('subsidyThreshold')?'$'+fmt(V('subsidyAmount')):'无'}(每单1次)`;
+                params.lastMile = p.weight>0 ? (getLastMile(0,p.weight)||0) : 0;
+                formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 销售额=成交价×(1+${(V('premiumRate')||25)}%)=${fmt(price*disc/100*(1+(V('premiumRate')||25)/100))}; 到仓=采购¥${p.cost}+运费$${p.shipUSD||0}×${V('exchangeRate')||6.5}; 尾程=${$U(params.lastMile)}; 运补=${hasSub&&price*disc/100*(1+(V('premiumRate')||25)/100)<=V('subsidyThreshold')?'$'+fmt(V('subsidyAmount')):'无'}(每单1次)`;
             }else{
                 params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');params.lastMile=getLastMile(0,params.weight)||0;
                 const wkg=(params.weight/1000).toFixed(3);
                 formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 到仓=采购${p.cost}+作图${params.imgCost}+国际运费${wkg}kg×$${getIntlRate(params.weight)||0}+打包${params.packFee}+头程${params.fmBase}÷(${(V('fFmWeight')||20)}÷${params.weight}×1000)+投递$${params.delivFee}+预上网${params.preList}; 尾程=${$U(params.lastMile)}`;
             }
             const r=calcProfit(params);
-            csv+=`"${p.name}","${p.factory||'-'}",${p.mode==='overseas'?'海外工厂':'国内发货'},${p.cost},${p.weight||0},${fmt(r.wc)},${fmt(price)},${disc},${p.qty||1},${fmt(r.tp)},${fmt(r.sa)},${r.hasSub?fmt(r.subUSD):0},${p.mode==='domestic'?fmt(r.lm):0},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)},"${formula}"\n`;
+            csv+=`"${p.name}","${p.factory||'-'}",${p.mode==='overseas'?'海外工厂':'国内发货'},${p.cost},${p.weight||0},${fmt(r.wc)},${fmt(price)},${disc},${p.qty||1},${fmt(r.tp)},${fmt(r.sa)},${r.hasSub?fmt(r.subUSD):0},${r.lm>0?fmt(r.lm):0},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)},"${formula}"\n`;
         });
         const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`利润计算_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('已导出CSV');
@@ -1141,9 +1238,10 @@
                 <button class="btn btn-gray btn-sm" style="margin-top:6px" onclick="S.providers[${pi}].rules.push({min:0,max:99999,price:0});renderProviders()">+ 添加区间</button>
             </div>
         `).join('');
-        // Update selects
+        // Update selects for both modes
         const opts = S.providers.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('');
         $('sLastMileProv').innerHTML = opts;
+        $('sLastMileProvOverseas').innerHTML = opts;
     }
     function addProvider(){ const n=prompt('物流商名称:'); if(n)S.providers.push({name:n,rules:[{min:0,max:99999,price:0}]}); renderProviders(); }
     function saveLogistics(){ S.providers.forEach(p=>p.rules.sort((a,b)=>a.min-b.min)); renderProviders(); toast('物流规则已保存'); calcSingle(); }
