@@ -134,6 +134,15 @@
         .modal .input-group { margin-bottom: 10px; }
         .modal .btn-row { justify-content: flex-end; }
 
+        /* Sync status */
+        .sync-bar { display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; margin-bottom:12px; font-size:12px; color:#0369a1; }
+        .sync-dot { width:8px;height:8px;border-radius:50%;display:inline-block; }
+        .sync-dot.syncing { background:#f59e0b;animation:pulse 1s infinite; }
+        .sync-dot.synced { background:#10b981; }
+        .sync-dot.error { background:#ef4444; }
+        .sync-dot.local { background:#94a3b8; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
         @media (max-width: 768px) {
             .input-row { grid-template-columns: 1fr 1fr; }
             .result-grid { grid-template-columns: repeat(2, 1fr); }
@@ -148,29 +157,37 @@
             <p>SHEIN · 海外工厂/国内发货 · 活动定价 · 利润计算 · 反推成交价</p>
         </div>
 
+        <!-- ===== 同步状态 ===== -->
+        <div class="sync-bar" id="syncBar">
+            <span class="sync-dot local" id="syncDot"></span>
+            <span id="syncText">本地模式</span>
+            <button class="btn btn-gray btn-sm" style="padding:3px 10px;font-size:11px" onclick="switchTab('sync')">⚙️ 同步设置</button>
+            <button class="btn btn-blue btn-sm" style="padding:3px 10px;font-size:11px" onclick="doSync()">🔄 同步</button>
+        </div>
+
         <!-- ===== 全局参数 ===== -->
         <div class="card">
             <div class="card-title"><span class="icon" style="background:#f0f9ff">⚙️</span> 全局参数</div>
             <div class="settings-row">
                 <div class="settings-item">
                     <label>汇率 (USD→CNY)</label>
-                    <input type="number" id="exchangeRate" value="6.5" step="0.01" min="0" onchange="recalcAll()">
+                    <input type="number" id="exchangeRate" value="6.5" step="0.01" min="0" onchange="onGlobalParamChange()">
                 </div>
                 <div class="settings-item">
                     <label>前台溢价率 (%)</label>
-                    <input type="number" id="premiumRate" value="25" step="1" min="0" onchange="recalcAll()">
+                    <input type="number" id="premiumRate" value="25" step="1" min="0" onchange="onGlobalParamChange()">
                 </div>
                 <div class="settings-item">
                     <label>运补金额 ($/单)</label>
-                    <input type="number" id="subsidyAmount" value="2.99" step="0.01" min="0" onchange="recalcAll()">
+                    <input type="number" id="subsidyAmount" value="2.99" step="0.01" min="0" onchange="onGlobalParamChange()">
                 </div>
                 <div class="settings-item">
                     <label>运补门槛 ($/单)</label>
-                    <input type="number" id="subsidyThreshold" value="30" step="1" min="0" onchange="recalcAll()">
+                    <input type="number" id="subsidyThreshold" value="30" step="1" min="0" onchange="onGlobalParamChange()">
                 </div>
                 <div class="settings-item">
                     <label>售后率 (%)</label>
-                    <input type="number" id="afterSaleRate" value="0" step="0.1" min="0" max="100" onchange="recalcAll()">
+                    <input type="number" id="afterSaleRate" value="0" step="0.1" min="0" max="100" onchange="onGlobalParamChange()">
                 </div>
             </div>
         </div>
@@ -354,6 +371,7 @@
             <button onclick="switchTab('records')">📝 计算记录</button>
             <button onclick="switchTab('logistics')">🚚 物流规则</button>
             <button onclick="switchTab('fixed')">💲 国内固定参数</button>
+            <button onclick="switchTab('sync')">☁️ 同步设置</button>
         </div>
 
         <!-- 批量计算 -->
@@ -380,7 +398,7 @@
                 <div class="table-wrap">
                     <table class="data-table" id="batchTable">
                         <thead><tr>
-                            <th>产品</th><th>工厂</th><th>模式</th><th>成本¥</th><th>克重g</th><th>到仓¥/件</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$/件</th><th>总收入¥</th><th>总成本¥</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th><th>操作</th>
+                            <th>产品</th><th>操作人</th><th>工厂</th><th>模式</th><th>成本¥</th><th>克重g</th><th>到仓¥/件</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$/件</th><th>总收入¥</th><th>总成本¥</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th><th>操作</th>
                         </tr></thead>
                         <tbody id="batchBody"></tbody>
                     </table>
@@ -430,7 +448,7 @@
                 <div class="table-wrap">
                     <table class="data-table" id="calcRecordsTable">
                         <thead><tr>
-                            <th>#</th><th>时间</th><th>产品名称</th><th>工厂</th><th>模式</th><th>成本¥</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$/件</th><th>总收入¥</th><th>总成本¥</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th><th>操作</th>
+                            <th>#</th><th>时间</th><th>产品名称</th><th>操作人</th><th>工厂</th><th>模式</th><th>成本¥</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$/件</th><th>总收入¥</th><th>总成本¥</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th><th>操作</th>
                         </tr></thead>
                         <tbody id="calcRecordsBody"></tbody>
                     </table>
@@ -472,25 +490,64 @@
                 <div class="settings-row">
                     <div class="settings-item">
                         <label>打包费 (¥/件)</label>
-                        <input type="number" id="fPackFee" value="1" step="0.01" min="0" onchange="recalcAll()">
+                        <input type="number" id="fPackFee" value="1" step="0.01" min="0" onchange="onGlobalParamChange()">
                     </div>
                     <div class="settings-item">
                         <label>头程基数 (¥)</label>
-                        <input type="number" id="fFmBase" value="50" step="0.01" min="0" onchange="recalcAll()">
+                        <input type="number" id="fFmBase" value="50" step="0.01" min="0" onchange="onGlobalParamChange()">
                         <span class="hint-text">÷(20÷克重g×1000)</span>
                     </div>
                     <div class="settings-item">
                         <label>分母重量 (kg)</label>
-                        <input type="number" id="fFmWeight" value="20" step="0.1" min="0" onchange="recalcAll()">
+                        <input type="number" id="fFmWeight" value="20" step="0.1" min="0" onchange="onGlobalParamChange()">
                     </div>
                     <div class="settings-item">
                         <label>海外投递 ($/单)</label>
-                        <input type="number" id="fDelivFee" value="0.25" step="0.01" min="0" onchange="recalcAll()">
+                        <input type="number" id="fDelivFee" value="0.25" step="0.01" min="0" onchange="onGlobalParamChange()">
                     </div>
                     <div class="settings-item">
                         <label>预上网 (¥/单)</label>
-                        <input type="number" id="fPreList" value="2.5" step="0.01" min="0" onchange="recalcAll()">
+                        <input type="number" id="fPreList" value="2.5" step="0.01" min="0" onchange="onGlobalParamChange()">
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 同步设置 -->
+        <div id="tab-sync" class="tab-pane">
+            <div class="card">
+                <div class="card-title"><span class="icon" style="background:#e0f2fe">☁️</span> 云同步设置</div>
+                <p class="hint-text" style="margin-bottom:10px">开启后，所有参数、产品库、物流规则、计算记录、批量数据等会自动同步到云端。分享给朋友后，对方打开同一页面即可看到实时数据。</p>
+                <div class="settings-row" style="margin-bottom:10px">
+                    <div class="settings-item" style="flex:2">
+                        <label>API 地址</label>
+                        <input type="text" id="syncApiUrl" placeholder="https://data-sync.xjyybdz.workers.dev" style="width:100%">
+                    </div>
+                    <div class="settings-item" style="flex:1">
+                        <label>API 密钥</label>
+                        <input type="password" id="syncApiKey" placeholder="输入密钥" style="width:100%">
+                    </div>
+                </div>
+                <div class="check-row" style="margin-bottom:10px">
+                    <input type="checkbox" id="syncAuto" checked>
+                    <label for="syncAuto">自动同步（每5秒检查更新）</label>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-blue btn-sm" onclick="saveSyncSettings()">💾 保存配置</button>
+                    <button class="btn btn-green btn-sm" onclick="doSync()">🔄 立即同步</button>
+                    <button class="btn btn-gray btn-sm" onclick="testSync()">🔌 测试连接</button>
+                    <button class="btn btn-red btn-sm" onclick="pushNow()">📤 立即上传</button>
+                </div>
+                <div id="syncLog" style="margin-top:10px;font-size:11px;color:var(--gray);max-height:100px;overflow-y:auto"></div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="icon" style="background:#fef3c7">💾</span> 数据管理</div>
+                <p class="hint-text" style="margin-bottom:10px">导出/导入全部数据用于备份，或清空本地数据</p>
+                <div class="btn-row">
+                    <button class="btn btn-gray btn-sm" onclick="exportAllJSON()">📦 导出全部(JSON)</button>
+                    <button class="btn btn-gray btn-sm" onclick="document.getElementById('importJSON').click()">📂 导入数据(JSON)</button>
+                    <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importAllJSON(event)">
+                    <button class="btn btn-red btn-sm" onclick="clearAllData()">🗑️ 清空全部数据</button>
                 </div>
             </div>
         </div>
@@ -515,6 +572,10 @@
             <div class="input-group">
                 <label>克重 (g)</label>
                 <input type="number" id="mWeight" step="0.1" min="0" placeholder="0">
+            </div>
+            <div class="input-group">
+                <label>操作人</label>
+                <input type="text" id="mOperator" placeholder="如：张三（记录是谁添加的）">
             </div>
             <div class="input-group">
                 <label>发货模式</label>
@@ -571,6 +632,124 @@
         batchItems: [],
         calcRecords: []
     };
+
+    // ============ CLOUD SYNC ============
+    const SYNC_NS = 'profit_calculator';
+    const SYNC_KEY = 'main';
+    const SYNC_CFG_KEY = 'profit_calc_sync_cfg';
+    const LOCAL_KEY = 'profit_calc_data_v2';
+    const DEFAULT_SYNC = { apiUrl: 'https://data-sync.xjyybdz.workers.dev', apiKey: 'mypass2026xyz', autoSync: true, interval: 5000 };
+    let syncCfg = { ...DEFAULT_SYNC };
+    let syncVersion = 0, isSyncing = false, syncTimer = null, lastSyncTs = 0;
+
+    function loadSyncCfg() { try { const s=localStorage.getItem(SYNC_CFG_KEY); if(s) syncCfg={...DEFAULT_SYNC,...JSON.parse(s)}; } catch(e){} }
+    function saveSyncCfg() { try { localStorage.setItem(SYNC_CFG_KEY, JSON.stringify(syncCfg)); } catch(e){} }
+
+    function updateSyncUI(status, msg) {
+        const dot=$('syncDot'), txt=$('syncText');
+        if(!dot||!txt) return;
+        dot.className='sync-dot '+status;
+        txt.textContent = msg || ({syncing:'同步中...',synced:lastSyncTs?`已同步 ${new Date(lastSyncTs).toLocaleTimeString('zh-CN')}`:'已同步',error:'同步失败',local:'本地模式'}[status]||'');
+    }
+    function syncLog(msg) { const el=$('syncLog'); if(el){el.innerHTML=`<div>${new Date().toLocaleTimeString('zh-CN')} - ${msg}</div>`+el.innerHTML;} }
+
+    async function syncGet() {
+        if(!syncCfg.apiUrl||!syncCfg.apiKey) return null;
+        try { const r=await fetch(`${syncCfg.apiUrl}/api/get?namespace=${SYNC_NS}&key=${SYNC_KEY}`,{headers:{'Authorization':`Bearer ${syncCfg.apiKey}`}}); if(!r.ok) return null; return await r.json(); }
+        catch(e){ console.error('syncGet',e); return null; }
+    }
+    async function syncSet(data) {
+        if(!syncCfg.apiUrl||!syncCfg.apiKey) return false;
+        try { const r=await fetch(`${syncCfg.apiUrl}/api/set`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${syncCfg.apiKey}`},body:JSON.stringify({namespace:SYNC_NS,key:SYNC_KEY,data})}); if(!r.ok) return false; const j=await r.json(); syncVersion=j.version||0; return true; }
+        catch(e){ console.error('syncSet',e); return false; }
+    }
+    async function syncCheck() {
+        if(!syncCfg.apiUrl||!syncCfg.apiKey) return false;
+        try { const r=await fetch(`${syncCfg.apiUrl}/api/check?namespace=${SYNC_NS}&key=${SYNC_KEY}&version=${syncVersion}`,{headers:{'Authorization':`Bearer ${syncCfg.apiKey}`}}); if(!r.ok) return false; return await r.json(); }
+        catch(e){ return false; }
+    }
+
+    function collectState() {
+        return {
+            providers: S.providers, intlRates: S.intlRates, library: S.library,
+            batchItems: S.batchItems, calcRecords: S.calcRecords,
+            globalParams: { rate:V('exchangeRate'), prem:V('premiumRate'), sub:V('subsidyAmount'), subThr:V('subsidyThreshold'), asr:V('afterSaleRate') },
+            fixedParams: { packFee:V('fPackFee'), fmBase:V('fFmBase'), fmWeight:V('fFmWeight'), delivFee:V('fDelivFee'), preList:V('fPreList') }
+        };
+    }
+    function applyState(d) {
+        if(!d) return;
+        if(d.providers) S.providers=d.providers;
+        if(d.intlRates) S.intlRates=d.intlRates;
+        if(d.library) S.library=d.library;
+        if(d.batchItems) S.batchItems=d.batchItems;
+        if(d.calcRecords) S.calcRecords=d.calcRecords;
+        if(d.globalParams){ const g=d.globalParams; if(g.rate!=null)$('exchangeRate').value=g.rate; if(g.prem!=null)$('premiumRate').value=g.prem; if(g.sub!=null)$('subsidyAmount').value=g.sub; if(g.subThr!=null)$('subsidyThreshold').value=g.subThr; if(g.asr!=null)$('afterSaleRate').value=g.asr; }
+        if(d.fixedParams){ const f=d.fixedParams; if(f.packFee!=null)$('fPackFee').value=f.packFee; if(f.fmBase!=null)$('fFmBase').value=f.fmBase; if(f.fmWeight!=null)$('fFmWeight').value=f.fmWeight; if(f.delivFee!=null)$('fDelivFee').value=f.delivFee; if(f.preList!=null)$('fPreList').value=f.preList; }
+    }
+
+    function saveState() {
+        try { localStorage.setItem(LOCAL_KEY, JSON.stringify(collectState())); } catch(e){}
+        if(syncCfg.autoSync && syncCfg.apiUrl && syncCfg.apiKey) pushToCloud();
+    }
+    async function pushToCloud() {
+        if(isSyncing) return;
+        isSyncing=true; updateSyncUI('syncing');
+        try { const ok=await syncSet(collectState()); updateSyncUI(ok?'synced':'error'); if(ok){lastSyncTs=Date.now();syncLog('已上传到云端');} else syncLog('上传失败'); }
+        catch(e){ updateSyncUI('error'); syncLog('上传异常: '+e.message); }
+        finally { isSyncing=false; }
+    }
+    async function doSync() {
+        if(isSyncing) return;
+        isSyncing=true; updateSyncUI('syncing');
+        try {
+            const ck=await syncCheck();
+            if(ck&&ck.changed&&ck.data){ applyState(ck.data); syncVersion=ck.version||0; try{localStorage.setItem(LOCAL_KEY,JSON.stringify(collectState()));}catch(e){} renderAll(); updateSyncUI('synced'); lastSyncTs=Date.now(); syncLog('已从云端拉取更新'); }
+            else if(ck){ updateSyncUI('synced'); lastSyncTs=Date.now(); }
+            else { updateSyncUI('error'); syncLog('检查更新失败'); }
+        } catch(e){ updateSyncUI('error'); syncLog('同步异常: '+e.message); }
+        finally { isSyncing=false; }
+    }
+    function pushNow(){ pushToCloud(); toast('正在上传...'); }
+    async function testSync() {
+        if(!syncCfg.apiUrl||!syncCfg.apiKey){toast('请先配置API地址和密钥');return;}
+        updateSyncUI('syncing','测试中...');
+        try { const r=await fetch(`${syncCfg.apiUrl}/health`); if(r.ok){const j=await r.json(); if(j.status==='ok'){updateSyncUI('synced','连接正常');toast('连接成功');syncLog('连接测试成功');}else{updateSyncUI('error','服务异常');toast('服务异常');}} else {updateSyncUI('error','连接失败');toast('连接失败:'+r.status);} }
+        catch(e){ updateSyncUI('error','连接失败'); toast('连接失败:'+e.message); }
+    }
+    function saveSyncSettings() {
+        syncCfg.apiUrl=$('syncApiUrl').value.trim();
+        syncCfg.apiKey=$('syncApiKey').value.trim();
+        syncCfg.autoSync=$('syncAuto').checked;
+        saveSyncCfg();
+        if(syncTimer){clearInterval(syncTimer);syncTimer=null;}
+        if(syncCfg.autoSync&&syncCfg.apiUrl&&syncCfg.apiKey){syncTimer=setInterval(doSync,syncCfg.interval);updateSyncUI('synced','自动同步已开启');}
+        else updateSyncUI('local','手动模式');
+        toast('同步配置已保存');
+    }
+    function startAutoSync() { if(syncTimer)clearInterval(syncTimer); if(syncCfg.autoSync&&syncCfg.apiUrl&&syncCfg.apiKey) syncTimer=setInterval(doSync,syncCfg.interval); }
+    function renderAll() { renderProviders(); renderIntlRates(); renderLibrary(); renderCalcRecords(); renderBatch(); recalcAll(); }
+
+    function exportAllJSON() { const blob=new Blob([JSON.stringify(collectState(),null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`利润计算器数据_${new Date().toISOString().slice(0,10)}.json`;a.click();toast('已导出'); }
+    function importAllJSON(e) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{try{const d=JSON.parse(ev.target.result);applyState(d);saveState();renderAll();toast('数据已导入');syncLog('从JSON文件导入数据');}catch(err){toast('文件格式错误');}}; r.readAsText(f); e.target.value=''; }
+    function clearAllData() { if(!confirm('确定清空所有数据？（产品库+计算记录+批量列表+物流规则）'))return; S.providers=[{name:'Gofo',rules:[{min:0,max:113,price:2.65},{min:113,max:227,price:2.87},{min:227,max:340,price:3.32},{min:340,max:454,price:3.65},{min:454,max:907,price:4.11},{min:907,max:1361,price:4.58},{min:1361,max:1814,price:4.58},{min:1814,max:99999,price:5.50}]},{name:'CBS',rules:[{min:0,max:113,price:4.24},{min:113,max:227,price:4.28},{min:227,max:340,price:4.97},{min:340,max:454,price:5.94},{min:454,max:907,price:10.11},{min:907,max:1361,price:11.04},{min:1361,max:1814,price:11.04},{min:1814,max:99999,price:13.00}]},{name:'USPS',rules:[{min:0,max:113,price:8.38},{min:113,max:227,price:8.38},{min:227,max:340,price:9.84},{min:340,max:454,price:9.84},{min:454,max:907,price:12.58},{min:907,max:1361,price:12.58},{min:1361,max:1814,price:14.76},{min:1814,max:99999,price:16.00}]}]; S.intlRates=[{min:0,max:200,price:8},{min:200,max:500,price:7},{min:500,max:1000,price:6},{min:1000,max:99999,price:5}]; S.library=[];S.batchItems=[];S.calcRecords=[]; saveState();renderAll();toast('已清空'); }
+
+    async function loadData() {
+        loadSyncCfg();
+        $('syncApiUrl').value=syncCfg.apiUrl;
+        $('syncApiKey').value=syncCfg.apiKey;
+        $('syncAuto').checked=syncCfg.autoSync;
+        // Try cloud first
+        if(syncCfg.apiUrl&&syncCfg.apiKey){
+            updateSyncUI('syncing','加载中...');
+            const cd=await syncGet();
+            if(cd&&cd.data){ applyState(cd.data); syncVersion=cd.version||0; try{localStorage.setItem(LOCAL_KEY,JSON.stringify(collectState()));}catch(e){} updateSyncUI('synced'); syncLog('从云端加载数据成功'); startAutoSync(); return; }
+        }
+        // Fallback to localStorage
+        try { const s=localStorage.getItem(LOCAL_KEY); if(s){applyState(JSON.parse(s));syncLog('从本地缓存加载');} } catch(e){}
+        updateSyncUI(syncCfg.apiUrl&&syncCfg.apiKey?'synced':'local');
+        if(syncCfg.autoSync&&syncCfg.apiUrl&&syncCfg.apiKey) startAutoSync();
+    }
 
     // ============ UTIL ============
     const $ = id => document.getElementById(id);
@@ -818,6 +997,7 @@
                 </div>
                 <div class="lib-name">${escH(p.name)}</div>
                 <div class="lib-info">
+                    ${p.operator?'👤 '+escH(p.operator)+'<br>':''}
                     ${p.factory?'🏭 '+escH(p.factory)+'<br>':''}
                     采购成本: ¥${fmt(p.cost)}<br>
                     ${p.mode==='domestic'?'克重: '+fmt(p.weight)+'g<br>':''}
@@ -834,9 +1014,9 @@
         if(editingLibIdx>=0){
             const p=S.library[editingLibIdx];
             $('mName').value=p.name;$('mFactory').value=p.factory||'';$('mCost').value=p.cost;$('mWeight').value=p.weight||0;
-            $('mMode').value=p.mode;$('mShipUSD').value=p.shipUSD||0;$('mImgCost').value=p.imgCost||0;
+            $('mMode').value=p.mode;$('mShipUSD').value=p.shipUSD||0;$('mImgCost').value=p.imgCost||0;$('mOperator').value=p.operator||'';
         } else {
-            $('mName').value='';$('mFactory').value='';$('mCost').value='';$('mWeight').value='';$('mMode').value='overseas';$('mShipUSD').value='';$('mImgCost').value='0';
+            $('mName').value='';$('mFactory').value='';$('mCost').value='';$('mWeight').value='';$('mMode').value='overseas';$('mShipUSD').value='';$('mImgCost').value='0';$('mOperator').value='';
         }
         toggleModalFields();
         $('productModal').classList.add('show');
@@ -851,17 +1031,18 @@
         const name=$('mName').value.trim();
         if(!name){toast('请输入产品名称');return;}
         const factory=$('mFactory').value.trim();
-        const p={name, factory, cost:V('mCost'), weight:V('mWeight'), mode:$('mMode').value, shipUSD:V('mShipUSD'), imgCost:V('mImgCost')};
+        const operator=$('mOperator').value.trim();
+        const p={name, factory, operator, cost:V('mCost'), weight:V('mWeight'), mode:$('mMode').value, shipUSD:V('mShipUSD'), imgCost:V('mImgCost')};
         if(editingLibIdx>=0) S.library[editingLibIdx]=p; else S.library.push(p);
-        closeProductModal(); renderLibrary(); toast('产品已保存');
+        closeProductModal(); renderLibrary(); saveState(); toast('产品已保存');
     }
     function editProduct(i){ openProductModal(i); }
-    function deleteProduct(i){ S.library.splice(i,1); renderLibrary(); toast('已删除'); }
+    function deleteProduct(i){ S.library.splice(i,1); renderLibrary(); saveState(); toast('已删除'); }
 
     // ============ BATCH IMPORT ============
     let pendingImport = [];
     function downloadTemplate(){
-        const csv = '\uFEFF产品名称,工厂信息,采购成本(¥/件),克重(g),发货模式(海外工厂/国内发货),单件运费($),作图成本(¥/单)\n连衣裙A款,广州白云工厂,25.00,280,海外工厂,3.50,\n手机壳B款,深圳龙岗工厂,8.50,120,国内发货,,5.00\n连衣裙C款,,32.00,350,海外工厂,4.20,';
+        const csv = '\uFEFF产品名称,工厂信息,操作人,采购成本(¥/件),克重(g),发货模式(海外工厂/国内发货),单件运费($),作图成本(¥/单)\n连衣裙A款,广州白云工厂,张三,25.00,280,海外工厂,3.50,\n手机壳B款,深圳龙岗工厂,李四,8.50,120,国内发货,,5.00\n连衣裙C款,,,32.00,350,海外工厂,4.20,';
         const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -886,23 +1067,24 @@
                 if(cols.length < 5){ errors.push(`第${i+1}行: 列数不足`); continue; }
                 const name = (cols[0]||'').trim();
                 const factory = (cols[1]||'').trim();
-                const cost = parseFloat(cols[2])||0;
-                const weight = parseFloat(cols[3])||0;
-                const modeStr = (cols[4]||'').trim();
-                const shipUSD = parseFloat(cols[5])||0;
-                const imgCost = parseFloat(cols[6])||0;
+                const operator = (cols[2]||'').trim();
+                const cost = parseFloat(cols[3])||0;
+                const weight = parseFloat(cols[4])||0;
+                const modeStr = (cols[5]||'').trim();
+                const shipUSD = parseFloat(cols[6])||0;
+                const imgCost = parseFloat(cols[7])||0;
                 if(!name){ errors.push(`第${i+1}行: 缺少产品名称`); continue; }
                 const mode = modeStr.includes('国内') ? 'domestic' : 'overseas';
-                pendingImport.push({name, factory, cost, weight, mode, shipUSD, imgCost});
+                pendingImport.push({name, factory, operator, cost, weight, mode, shipUSD, imgCost});
             }
             // Show preview
             let html = '';
             if(errors.length) html += `<div style="color:var(--red);margin-bottom:6px">⚠️ ${errors.length} 行有误: ${errors.join('; ')}</div>`;
             if(pendingImport.length){
                 html += `<div style="margin-bottom:6px">共解析 <strong>${pendingImport.length}</strong> 个产品:</div>`;
-                html += '<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#dcfce7"><th style="padding:4px;border:1px solid #e2e8f0;text-align:left">名称</th><th style="padding:4px;border:1px solid #e2e8f0">工厂</th><th style="padding:4px;border:1px solid #e2e8f0">成本¥</th><th style="padding:4px;border:1px solid #e2e8f0">克重g</th><th style="padding:4px;border:1px solid #e2e8f0">模式</th><th style="padding:4px;border:1px solid #e2e8f0">运费$/作图¥</th></tr>';
+                html += '<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#dcfce7"><th style="padding:4px;border:1px solid #e2e8f0;text-align:left">名称</th><th style="padding:4px;border:1px solid #e2e8f0">工厂</th><th style="padding:4px;border:1px solid #e2e8f0">操作人</th><th style="padding:4px;border:1px solid #e2e8f0">成本¥</th><th style="padding:4px;border:1px solid #e2e8f0">克重g</th><th style="padding:4px;border:1px solid #e2e8f0">模式</th><th style="padding:4px;border:1px solid #e2e8f0">运费$/作图¥</th></tr>';
                 pendingImport.forEach(p=>{
-                    html += `<tr><td style="padding:3px 4px;border:1px solid #f1f5f9">${escH(p.name)}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${escH(p.factory)||'-'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${fmt(p.cost)}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${p.weight||'-'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${p.mode==='overseas'?'海外工厂':'国内发货'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${p.mode==='overseas'?'$'+fmt(p.shipUSD):'¥'+fmt(p.imgCost)}</td></tr>`;
+                    html += `<tr><td style="padding:3px 4px;border:1px solid #f1f5f9">${escH(p.name)}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${escH(p.factory)||'-'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${escH(p.operator)||'-'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${fmt(p.cost)}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${p.weight||'-'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${p.mode==='overseas'?'海外工厂':'国内发货'}</td><td style="padding:3px 4px;border:1px solid #f1f5f9;text-align:center">${p.mode==='overseas'?'$'+fmt(p.shipUSD):'¥'+fmt(p.imgCost)}</td></tr>`;
                 });
                 html += '</table>';
             }
@@ -938,6 +1120,7 @@
         pendingImport = [];
         $('importPreview').style.display = 'none';
         renderLibrary();
+        saveState();
         toast(`已导入 ${cnt} 个产品`);
     }
     function cancelImport(){
@@ -1026,10 +1209,11 @@
         }
         const r = calcProfit(params);
         const now = new Date();
-        const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const ts = `${now.getMonth()+1}/${now.getDate()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const operator = libMatch ? (libMatch.operator||'') : '';
         S.calcRecords.push({
             time: ts,
-            name, factory: f,
+            name, factory: f, operator,
             mode: S.mode,
             cost, price, disc, qty,
             hasSub,
@@ -1041,6 +1225,7 @@
             preProfit: r.preProfit, afterProfit: r.afterProfit, margin: r.margin
         });
         renderCalcRecords();
+        saveState();
         toast('已保存到计算记录');
     }
     function renderCalcRecords(){
@@ -1064,6 +1249,7 @@
                 <td>${i+1}</td>
                 <td style="font-size:11px;color:var(--gray);white-space:nowrap">${r.time}</td>
                 <td style="font-weight:600;text-align:left;padding-left:8px">${escH(r.name)}</td>
+                <td style="font-size:11px;color:var(--gray)">${r.operator?escH(r.operator):'-'}</td>
                 <td style="font-size:11px;color:var(--gray)">${r.factory?escH(r.factory):'-'}</td>
                 <td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${r.mode==='overseas'?'background:#dbeafe;color:#1d4ed8':'background:#dcfce7;color:#166534'}">${r.mode==='overseas'?'海外':'国内'}</span></td>
                 <td>${fmt(r.cost)}</td>
@@ -1084,26 +1270,26 @@
         }).join('');
         summary.innerHTML=`共 ${S.calcRecords.length} 条 | <span style="color:var(--green)">盈利: ${pCnt}</span> | <span style="color:var(--red)">亏损: ${lCnt}</span> | 总售前: <strong style="color:${tPre>=0?'var(--green)':'var(--red)'}">${$C(tPre)}</strong> | 总售后: <strong style="color:${tAfter>=0?'var(--green)':'var(--red)'}">${$C(tAfter)}</strong>`;
     }
-    function deleteCalcRecord(i){S.calcRecords.splice(i,1);renderCalcRecords();toast('已删除');}
+    function deleteCalcRecord(i){S.calcRecords.splice(i,1);renderCalcRecords();saveState();toast('已删除');}
     function clearCalcRecords(){
         if(!S.calcRecords.length){toast('暂无记录');return;}
         if(!confirm('确定清空所有计算记录？'))return;
-        S.calcRecords=[];renderCalcRecords();toast('已清空');
+        S.calcRecords=[];renderCalcRecords();saveState();toast('已清空');
     }
     function exportCalcRecordsCSV(){
         if(!S.calcRecords.length){toast('暂无记录');return;}
-        let csv='\uFEFF序号,时间,产品名称,工厂,发货模式,采购成本¥,核价$,折扣%,件数,成交价$,销售额$,运补$,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%\n';
+        let csv='\uFEFF序号,时间,产品名称,操作人,工厂,发货模式,采购成本¥,核价$,折扣%,件数,成交价$,销售额$,运补$,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%\n';
         S.calcRecords.forEach((r,i)=>{
-            csv+=`${i+1},${r.time},"${r.name}","${r.factory||'-'}",${r.mode==='overseas'?'海外工厂':'国内发货'},${r.cost},${fmt(r.price)},${r.disc},${r.qty},${fmt(r.tp)},${fmt(r.sa)},${r.subUSD>0?fmt(r.subUSD):'0'},${r.lm>0?fmt(r.lm):'0'},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)}\n`;
+            csv+=`${i+1},${r.time},"${r.name}","${r.operator||'-'}","${r.factory||'-'}",${r.mode==='overseas'?'海外工厂':'国内发货'},${r.cost},${fmt(r.price)},${r.disc},${r.qty},${fmt(r.tp)},${fmt(r.sa)},${r.subUSD>0?fmt(r.subUSD):'0'},${r.lm>0?fmt(r.lm):'0'},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)}\n`;
         });
         const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`计算记录_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('已导出CSV');
     }
     function copyCalcRecords(){
         if(!S.calcRecords.length){toast('暂无记录');return;}
-        let t='#\t时间\t产品\t工厂\t模式\t成本¥\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
+        let t='#\t时间\t产品\t操作人\t工厂\t模式\t成本¥\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
         S.calcRecords.forEach((r,i)=>{
-            t+=`${i+1}\t${r.time}\t${r.name}\t${r.factory||'-'}\t${r.mode==='overseas'?'海外':'国内'}\t${fmt(r.cost)}\t${fmt(r.price)}\t${r.disc}\t${r.qty}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.subUSD>0?fmt(r.subUSD):'无'}\t${r.lm>0?fmt(r.lm):'-'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
+            t+=`${i+1}\t${r.time}\t${r.name}\t${r.operator||'-'}\t${r.factory||'-'}\t${r.mode==='overseas'?'海外':'国内'}\t${fmt(r.cost)}\t${fmt(r.price)}\t${r.disc}\t${r.qty}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.subUSD>0?fmt(r.subUSD):'无'}\t${r.lm>0?fmt(r.lm):'-'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
         });
         const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('已复制到剪贴板');
     }
@@ -1121,22 +1307,22 @@
         const chks=btn.closest('.modal').querySelectorAll('.pick-chk:checked');
         chks.forEach(c=>{const idx=parseInt(c.value);if(!S.batchItems.find(b=>b.libIdx===idx))S.batchItems.push({...S.library[idx],libIdx:idx,qty:1,price:0,disc:0});});
         btn.closest('.modal-overlay').remove();
-        renderBatch();toast(`已添加 ${chks.length} 个产品`);
+        renderBatch();saveState();toast(`已添加 ${chks.length} 个产品`);
     }
     function renderBatch(){
         // Selected tags
         $('batchSelected').innerHTML = S.batchItems.map((p,i)=>`<span class="batch-product-tag">${escH(p.name)} <span class="remove" onclick="removeBatchItem(${i})">×</span></span>`).join('');
         recalcBatch();
     }
-    function removeBatchItem(i){S.batchItems.splice(i,1);renderBatch();}
-    function clearBatch(){S.batchItems=[];renderBatch();$('batchSummary').textContent='';}
+    function removeBatchItem(i){S.batchItems.splice(i,1);renderBatch();saveState();}
+    function clearBatch(){S.batchItems=[];renderBatch();$('batchSummary').textContent='';saveState();}
 
     function recalcBatch(){
         const g=gp(), gPrice=V('bPrice'), gDisc=V('bDiscount')||100, hasSub=$('bHasSub').checked;
         let tPre=0,tAfter=0,pCnt=0,lCnt=0;
         $('batchBody').innerHTML = S.batchItems.map((p,i)=>{
             const price=p.price||gPrice, disc=p.disc||gDisc;
-            if(!price||!p.cost) return `<tr><td>${escH(p.name)}</td><td colspan="16" style="color:#94a3b8">请填写核价</td></tr>`;
+            if(!price||!p.cost) return `<tr><td>${escH(p.name)}</td><td colspan="17" style="color:#94a3b8">请填写核价</td></tr>`;
             let params={mode:p.mode,price,disc,cost:p.cost,qty:p.qty||1,hasSub};
             if(p.mode==='overseas'){
                 params.shipUSD=p.shipUSD||0;
@@ -1153,14 +1339,15 @@
             if(r.preProfit>=0)pCnt++;else lCnt++;
             return `<tr>
                 <td style="font-weight:600;text-align:left;padding-left:8px">${escH(p.name)}</td>
+                <td style="font-size:11px;color:var(--gray)">${p.operator?escH(p.operator):'-'}</td>
                 <td style="font-size:11px;color:var(--gray)">${p.factory?escH(p.factory):'-'}</td>
                 <td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${p.mode==='overseas'?'background:#dbeafe;color:#1d4ed8':'background:#dcfce7;color:#166534'}">${p.mode==='overseas'?'海外':'国内'}</span></td>
-                <td><input type="number" value="${p.cost}" onchange="S.batchItems[${i}].cost=+this.value;recalcBatch()" step="0.01"></td>
+                <td><input type="number" value="${p.cost}" onchange="S.batchItems[${i}].cost=+this.value;recalcBatch();saveState()" step="0.01"></td>
                 <td>${p.weight||'-'}</td>
                 <td style="font-weight:600">${fmt(r.wc)}</td>
-                <td><input type="number" value="${p.price||''}" onchange="S.batchItems[${i}].price=+this.value;recalcBatch()" placeholder="全局" step="0.01"></td>
-                <td><input type="number" value="${p.disc||''}" onchange="S.batchItems[${i}].disc=+this.value;recalcBatch()" placeholder="全局" step="1" style="width:50px"></td>
-                <td><input type="number" value="${p.qty||1}" onchange="S.batchItems[${i}].qty=+this.value;recalcBatch()" style="width:45px" min="1"></td>
+                <td><input type="number" value="${p.price||''}" onchange="S.batchItems[${i}].price=+this.value;recalcBatch();saveState()" placeholder="全局" step="0.01"></td>
+                <td><input type="number" value="${p.disc||''}" onchange="S.batchItems[${i}].disc=+this.value;recalcBatch();saveState()" placeholder="全局" step="1" style="width:50px"></td>
+                <td><input type="number" value="${p.qty||1}" onchange="S.batchItems[${i}].qty=+this.value;recalcBatch();saveState()" style="width:45px" min="1"></td>
                 <td>${$U(r.tp)}</td><td>${$U(r.sa)}</td>
                 <td style="color:${r.hasSub?'var(--green)':'#cbd5e1'}">${r.hasSub?$U(r.subUSD):'无'}</td>
                 <td>${r.lm>0?$U(r.lm):'-'}</td>
@@ -1178,7 +1365,7 @@
     function exportBatch(){
         if(!S.batchItems.length){toast('暂无数据');return;}
         const g=gp(),gP=V('bPrice'),gD=V('bDiscount')||100,hasSub=$('bHasSub').checked;
-        let t='产品\t工厂\t模式\t成本¥\t克重g\t到仓¥/件\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
+        let t='产品\t操作人\t工厂\t模式\t成本¥\t克重g\t到仓¥/件\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
         S.batchItems.forEach(p=>{
             const price=p.price||gP,disc=p.disc||gD;
             if(!price||!p.cost)return;
@@ -1190,7 +1377,7 @@
                 params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');params.lastMile=getLastMile(0,params.weight)||0;
             }
             const r=calcProfit(params);
-            t+=`${p.name}\t${p.factory||'-'}\t${p.mode==='overseas'?'海外工厂':'国内发货'}\t${p.cost}\t${p.weight||0}\t${fmt(r.wc)}\t${fmt(price)}\t${disc}\t${p.qty||1}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.hasSub?fmt(r.subUSD):'0'}\t${r.lm>0?fmt(r.lm):'0'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
+            t+=`${p.name}\t${p.operator||'-'}\t${p.factory||'-'}\t${p.mode==='overseas'?'海外工厂':'国内发货'}\t${p.cost}\t${p.weight||0}\t${fmt(r.wc)}\t${fmt(price)}\t${disc}\t${p.qty||1}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.hasSub?fmt(r.subUSD):'0'}\t${r.lm>0?fmt(r.lm):'0'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
         });
         const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('已复制到剪贴板');
     }
@@ -1198,7 +1385,7 @@
     function exportBatchCSV(){
         if(!S.batchItems.length){toast('暂无数据');return;}
         const g=gp(),gP=V('bPrice'),gD=V('bDiscount')||100,hasSub=$('bHasSub').checked;
-        let csv='\uFEFF产品,工厂,发货模式,采购成本¥,克重g,到仓成本¥/件,核价$,折扣%,件数,成交价$,销售额$(含溢价),运补$/单,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%,计算公式说明\n';
+        let csv='\uFEFF产品,操作人,工厂,发货模式,采购成本¥,克重g,到仓成本¥/件,核价$,折扣%,件数,成交价$,销售额$(含溢价),运补$/单,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%,计算公式说明\n';
         S.batchItems.forEach(p=>{
             const price=p.price||gP,disc=p.disc||gD;
             if(!price||!p.cost)return;
@@ -1214,7 +1401,7 @@
                 formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 到仓=采购${p.cost}+作图${params.imgCost}+国际运费${wkg}kg×$${getIntlRate(params.weight)||0}+打包${params.packFee}+头程${params.fmBase}÷(${(V('fFmWeight')||20)}÷${params.weight}×1000)+投递$${params.delivFee}+预上网${params.preList}; 尾程=${$U(params.lastMile)}`;
             }
             const r=calcProfit(params);
-            csv+=`"${p.name}","${p.factory||'-'}",${p.mode==='overseas'?'海外工厂':'国内发货'},${p.cost},${p.weight||0},${fmt(r.wc)},${fmt(price)},${disc},${p.qty||1},${fmt(r.tp)},${fmt(r.sa)},${r.hasSub?fmt(r.subUSD):0},${r.lm>0?fmt(r.lm):0},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)},"${formula}"\n`;
+            csv+=`"${p.name}","${p.operator||'-'}","${p.factory||'-'}",${p.mode==='overseas'?'海外工厂':'国内发货'},${p.cost},${p.weight||0},${fmt(r.wc)},${fmt(price)},${disc},${p.qty||1},${fmt(r.tp)},${fmt(r.sa)},${r.hasSub?fmt(r.subUSD):0},${r.lm>0?fmt(r.lm):0},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)},"${formula}"\n`;
         });
         const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`利润计算_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('已导出CSV');
@@ -1243,8 +1430,8 @@
         $('sLastMileProv').innerHTML = opts;
         $('sLastMileProvOverseas').innerHTML = opts;
     }
-    function addProvider(){ const n=prompt('物流商名称:'); if(n)S.providers.push({name:n,rules:[{min:0,max:99999,price:0}]}); renderProviders(); }
-    function saveLogistics(){ S.providers.forEach(p=>p.rules.sort((a,b)=>a.min-b.min)); renderProviders(); toast('物流规则已保存'); calcSingle(); }
+    function addProvider(){ const n=prompt('物流商名称:'); if(n)S.providers.push({name:n,rules:[{min:0,max:99999,price:0}]}); renderProviders(); saveState(); }
+    function saveLogistics(){ S.providers.forEach(p=>p.rules.sort((a,b)=>a.min-b.min)); renderProviders(); saveState(); toast('物流规则已保存'); calcSingle(); }
 
     function renderIntlRates(){
         $('intlBody').innerHTML = S.intlRates.map((r,i)=>`<tr>
@@ -1254,24 +1441,28 @@
             <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.intlRates.splice(${i},1);renderIntlRates()">×</button></td>
         </tr>`).join('');
     }
-    function addIntlRate(){ S.intlRates.push({min:0,max:200,price:0}); renderIntlRates(); }
-    function saveIntlRates(){ S.intlRates.sort((a,b)=>a.min-b.min); renderIntlRates(); toast('国际运费规则已保存'); calcSingle(); }
+    function addIntlRate(){ S.intlRates.push({min:0,max:200,price:0}); renderIntlRates(); saveState(); }
+    function saveIntlRates(){ S.intlRates.sort((a,b)=>a.min-b.min); renderIntlRates(); saveState(); toast('国际运费规则已保存'); calcSingle(); }
 
     // ============ TABS ============
     function switchTab(t){
         document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
         document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
         $('tab-'+t).classList.add('active');
-        const labels={batch:'批量',library:'产品库',records:'记录',logistics:'物流',fixed:'固定'};
+        const labels={batch:'批量',library:'产品库',records:'记录',logistics:'物流',fixed:'固定',sync:'同步'};
         document.querySelectorAll('.tabs button').forEach(b=>{if(b.textContent.includes(labels[t]))b.classList.add('active');});
     }
     function recalcAll(){calcSingle();recalcBatch();}
+    function onGlobalParamChange(){recalcAll();saveState();}
 
     // ============ INIT ============
-    renderProviders();
-    renderIntlRates();
-    renderLibrary();
-    renderCalcRecords();
+    loadData().then(()=>{
+        renderProviders();
+        renderIntlRates();
+        renderLibrary();
+        renderCalcRecords();
+        recalcAll();
+    });
     </script>
 </body>
 </html>
