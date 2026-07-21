@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
+<!-- saved from url=(0275)https://static.coze.site/7629016912969810185-data_volume/files/%E6%89%80%E6%9C%89%E5%AF%B9%E8%AF%9D/%E4%B8%BB%E5%AF%B9%E8%AF%9D/%E7%94%A8%E6%88%B7%E4%B8%8A%E4%BC%A0/profit-calc.html?sign=1787123283-1dc31939e9-0-6f32dd49e64186e7215ec2eefa8cf50f7a1b5b38d69d4042562661e2d9178435 -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>活动利润计算器</title>
     <style>
@@ -134,6 +134,18 @@
         .modal .input-group { margin-bottom: 10px; }
         .modal .btn-row { justify-content: flex-end; }
 
+        /* Product search */
+        .product-search { width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:10px;background:#fafbfc; }
+        .product-search:focus { outline:none;border-color:var(--blue);background:#fff; }
+
+        /* Batch mode toggle */
+        .batch-mode-toggle { display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-bottom:10px;width:fit-content; }
+        .batch-mode-toggle button { padding:5px 12px;border:none;background:#fff;font-size:11px;font-weight:500;cursor:pointer;color:var(--gray);transition:all .2s; }
+        .batch-mode-toggle button.active { background:var(--blue);color:#fff; }
+
+        /* Data tooltip */
+        td[title] { cursor:help; }
+
         /* Sync status */
         .sync-bar { display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; margin-bottom:12px; font-size:12px; color:#0369a1; }
         .sync-dot { width:8px;height:8px;border-radius:50%;display:inline-block; }
@@ -149,7 +161,7 @@
             .settings-row { gap: 8px; }
         }
     </style>
-</head>
+<input type="hidden" id="_o_dbjbempljhcmhlfpfacalomonjpalpko" data-inspect-config="7"><script type="text/javascript" src="chrome-extension://dbjbempljhcmhlfpfacalomonjpalpko/scripts/inspector.js"></script></head>
 <body>
     <div class="container">
         <div class="page-header">
@@ -159,9 +171,9 @@
 
         <!-- ===== 同步状态 ===== -->
         <div class="sync-bar" id="syncBar">
-            <span class="sync-dot local" id="syncDot"></span>
-            <span id="syncText">本地模式</span>
-            <button class="btn btn-gray btn-sm" style="padding:3px 10px;font-size:11px" onclick="switchTab('sync')">⚙️ 同步设置</button>
+            <span class="sync-dot syncing" id="syncDot"></span>
+            <span id="syncText">同步中...</span>
+            <button class="btn btn-gray btn-sm" style="padding:3px 10px;font-size:11px" onclick="switchTab(&#39;sync&#39;)">⚙️ 同步设置</button>
             <button class="btn btn-blue btn-sm" style="padding:3px 10px;font-size:11px" onclick="doSync()">🔄 同步</button>
         </div>
 
@@ -196,14 +208,14 @@
         <div class="card">
             <div class="card-title"><span class="icon" style="background:#dcfce7">🚚</span> 利润计算</div>
             <div class="toggle-group">
-                <button class="active-blue" id="modeBtn0" onclick="setMode('overseas')">🏭 海外工厂发货</button>
-                <button id="modeBtn1" onclick="setMode('domestic')">📦 国内发货</button>
+                <button class="active-blue" id="modeBtn0" onclick="setMode(&#39;overseas&#39;)">🏭 海外工厂发货</button>
+                <button id="modeBtn1" onclick="setMode(&#39;domestic&#39;)">📦 国内发货</button>
             </div>
 
             <!-- 活动类型 -->
             <div class="toggle-group" style="border-color:#d1fae5">
-                <button class="active-green" id="actBtn0" onclick="setActType('marketing')">营销活动（不限购）</button>
-                <button id="actBtn1" onclick="setActType('tool')">营销工具（可限购）</button>
+                <button class="active-green" id="actBtn0" onclick="setActType(&#39;marketing&#39;)">营销活动（不限购）</button>
+                <button id="actBtn1" onclick="setActType(&#39;tool&#39;)">营销工具（可限购）</button>
             </div>
             <div id="limitWrap" style="display:none;margin-bottom:10px">
                 <div class="input-group" style="max-width:140px">
@@ -269,7 +281,7 @@
                             <span style="font-size:11px;color:var(--gray)">$/件</span>
                         </span>
                         <span id="sLastMileAutoOverseas" style="display:none;display:none;align-items:center;gap:6px">
-                            <select id="sLastMileProvOverseas" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
+                            <select id="sLastMileProvOverseas" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"><option value="0">Gofo</option><option value="1">CBS</option><option value="2">USPS</option></select>
                             <span id="sLastMileInfoOverseas" style="font-size:13px;font-weight:600;color:var(--blue)">未选择</span>
                         </span>
                         <span id="sLastMileNoneOverseas" style="font-size:12px;color:var(--gray)">尾程为$0</span>
@@ -322,7 +334,7 @@
                             <span style="font-size:11px;color:var(--gray)">$/件</span>
                         </span>
                         <span id="sLastMileAutoDomestic" style="display:flex;align-items:center;gap:6px">
-                            <select id="sLastMileProv" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
+                            <select id="sLastMileProv" onchange="calcSingle()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"><option value="0">Gofo</option><option value="1">CBS</option><option value="2">USPS</option></select>
                             <span id="sLastMileInfo" style="font-size:13px;font-weight:600;color:var(--blue)">未选择</span>
                         </span>
                     </div>
@@ -330,7 +342,7 @@
             </div>
 
             <div class="check-row">
-                <input type="checkbox" id="sHasSub" checked onchange="calcSingle()">
+                <input type="checkbox" id="sHasSub" checked="" onchange="calcSingle()">
                 <label for="sHasSub">有运费补贴 ($<span id="subLabel">2.99</span>/单)</label>
             </div>
 
@@ -353,11 +365,11 @@
                 <div class="input-row" style="margin-bottom:0">
                     <div class="input-group">
                         <label>目标售前利润 (¥)</label>
-                        <input type="number" id="rTargetPre" step="0.01" min="0" placeholder="反推核价" oninput="reverseCalc('pre')">
+                        <input type="number" id="rTargetPre" step="0.01" min="0" placeholder="反推核价" oninput="reverseCalc(&#39;pre&#39;)">
                     </div>
                     <div class="input-group">
                         <label>目标售后利润 (¥)</label>
-                        <input type="number" id="rTargetAfter" step="0.01" min="0" placeholder="反推核价" oninput="reverseCalc('after')">
+                        <input type="number" id="rTargetAfter" step="0.01" min="0" placeholder="反推核价" oninput="reverseCalc(&#39;after&#39;)">
                     </div>
                 </div>
                 <div id="reverseOut" style="display:none"></div>
@@ -366,12 +378,12 @@
 
         <!-- ===== Tabs: 批量 / 产品库 / 计算记录 / 物流规则 / 固定参数 ===== -->
         <div class="tabs">
-            <button class="active" onclick="switchTab('batch')">📊 批量计算</button>
-            <button onclick="switchTab('library')">📁 产品库</button>
-            <button onclick="switchTab('records')">📝 计算记录</button>
-            <button onclick="switchTab('logistics')">🚚 物流规则</button>
-            <button onclick="switchTab('fixed')">💲 国内固定参数</button>
-            <button onclick="switchTab('sync')">☁️ 同步设置</button>
+            <button class="active" onclick="switchTab(&#39;batch&#39;)">📊 批量计算</button>
+            <button onclick="switchTab(&#39;library&#39;)">📁 产品库</button>
+            <button onclick="switchTab(&#39;records&#39;)">📝 计算记录</button>
+            <button onclick="switchTab(&#39;logistics&#39;)">🚚 物流规则</button>
+            <button onclick="switchTab(&#39;fixed&#39;)">💲 国内固定参数</button>
+            <button onclick="switchTab(&#39;sync&#39;)">☁️ 同步设置</button>
         </div>
 
         <!-- 批量计算 -->
@@ -391,8 +403,12 @@
                     </div>
                 </div>
                 <div class="check-row" style="margin-bottom:10px">
-                    <input type="checkbox" id="bHasSub" checked onchange="recalcBatch()">
+                    <input type="checkbox" id="bHasSub" checked="" onchange="recalcBatch()">
                     <label for="bHasSub">有运费补贴</label>
+                </div>
+                <div class="batch-mode-toggle" id="batchLmToggle">
+                    <button class="active" data-mode="auto" onclick="setBatchLmMode(&#39;auto&#39;)">🚚 尾程: 自动匹配物流规则</button>
+                    <button data-mode="stored" onclick="setBatchLmMode(&#39;stored&#39;)">💲 尾程: 读取产品录入值</button>
                 </div>
                 <div id="batchSelected" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
                 <div class="table-wrap">
@@ -407,7 +423,7 @@
                     <button class="btn btn-green btn-sm" onclick="exportBatch()">📋 复制表格</button>
                     <button class="btn btn-green btn-sm" onclick="exportBatchCSV()">💾 导出CSV(含公式)</button>
                 </div>
-                <div id="batchSummary" style="margin-top:8px;font-size:12px;color:var(--gray)"></div>
+                <div id="batchSummary" style="margin-top:8px;font-size:12px;color:var(--gray)">共 0 件 | <span style="color:var(--green)">盈利: 0</span> | <span style="color:var(--red)">亏损: 0</span> | 总售前: <strong style="color:var(--green)">¥0.00</strong> | 总售后: <strong style="color:var(--green)">¥0.00</strong></div>
             </div>
         </div>
 
@@ -430,7 +446,7 @@
                         <button class="btn btn-gray btn-sm" onclick="cancelImport()">取消</button>
                     </div>
                 </div>
-                <div class="lib-grid" id="libGrid"></div>
+                <div class="lib-grid" id="libGrid"><p style="color:var(--gray);font-size:13px;padding:20px 0;text-align:center">暂无产品，点击上方按钮添加</p></div>
             </div>
         </div>
 
@@ -446,14 +462,14 @@
                 </div>
                 <div id="calcRecordsSummary" style="font-size:12px;color:var(--gray);margin-bottom:8px"></div>
                 <div class="table-wrap">
-                    <table class="data-table" id="calcRecordsTable">
+                    <table class="data-table" id="calcRecordsTable" style="display: none;">
                         <thead><tr>
                             <th>#</th><th>时间</th><th>产品名称</th><th>操作人</th><th>工厂</th><th>模式</th><th>成本¥</th><th>核价$</th><th>折扣%</th><th>件数</th><th>成交价$</th><th>销售额$</th><th>运补$</th><th>尾程$/件</th><th>总收入¥</th><th>总成本¥</th><th>售前利润¥</th><th>售后利润¥</th><th>利润率</th><th>操作</th>
                         </tr></thead>
                         <tbody id="calcRecordsBody"></tbody>
                     </table>
                 </div>
-                <div id="calcRecordsEmpty" style="text-align:center;padding:30px;color:var(--gray);font-size:13px">暂无记录，手动计算后点击"保存到计算记录"</div>
+                <div id="calcRecordsEmpty" style="text-align: center; padding: 30px; color: var(--gray); font-size: 13px; display: block;">暂无记录，手动计算后点击"保存到计算记录"</div>
             </div>
         </div>
 
@@ -462,7 +478,157 @@
             <div class="card">
                 <div class="card-title"><span class="icon" style="background:#e0e7ff">🚚</span> 物流商运费规则</div>
                 <p class="hint-text" style="margin-bottom:8px">按克重区间设置尾程运费，国内发货模式下自动匹配</p>
-                <div id="logisticsArea"></div>
+                <div id="logisticsArea">
+            <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <strong style="font-size:13px">Gofo</strong>
+                    <button class="btn btn-red btn-sm" style="padding:2px 8px" onclick="S.providers.splice(0,1);renderProviders()">删除</button>
+                </div>
+                <table class="rule-table"><thead><tr><th>最低(g)</th><th>最高(g)</th><th>运费($)</th><th>操作</th></tr></thead><tbody>
+                <tr>
+                    <td><input type="number" value="0" onchange="S.providers[0].rules[0].min=+this.value"></td>
+                    <td><input type="number" value="113" onchange="S.providers[0].rules[0].max=+this.value"></td>
+                    <td><input type="number" value="2.65" onchange="S.providers[0].rules[0].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(0,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="113" onchange="S.providers[0].rules[1].min=+this.value"></td>
+                    <td><input type="number" value="227" onchange="S.providers[0].rules[1].max=+this.value"></td>
+                    <td><input type="number" value="2.87" onchange="S.providers[0].rules[1].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(1,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="227" onchange="S.providers[0].rules[2].min=+this.value"></td>
+                    <td><input type="number" value="340" onchange="S.providers[0].rules[2].max=+this.value"></td>
+                    <td><input type="number" value="3.32" onchange="S.providers[0].rules[2].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(2,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="340" onchange="S.providers[0].rules[3].min=+this.value"></td>
+                    <td><input type="number" value="454" onchange="S.providers[0].rules[3].max=+this.value"></td>
+                    <td><input type="number" value="3.65" onchange="S.providers[0].rules[3].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(3,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="454" onchange="S.providers[0].rules[4].min=+this.value"></td>
+                    <td><input type="number" value="907" onchange="S.providers[0].rules[4].max=+this.value"></td>
+                    <td><input type="number" value="4.11" onchange="S.providers[0].rules[4].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(4,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="907" onchange="S.providers[0].rules[5].min=+this.value"></td>
+                    <td><input type="number" value="1361" onchange="S.providers[0].rules[5].max=+this.value"></td>
+                    <td><input type="number" value="4.58" onchange="S.providers[0].rules[5].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(5,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="1361" onchange="S.providers[0].rules[6].min=+this.value"></td>
+                    <td><input type="number" value="1814" onchange="S.providers[0].rules[6].max=+this.value"></td>
+                    <td><input type="number" value="4.58" onchange="S.providers[0].rules[6].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(6,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="1814" onchange="S.providers[0].rules[7].min=+this.value"></td>
+                    <td><input type="number" value="99999" onchange="S.providers[0].rules[7].max=+this.value"></td>
+                    <td><input type="number" value="5.5" onchange="S.providers[0].rules[7].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[0].rules.splice(7,1);renderProviders()">×</button></td>
+                </tr></tbody></table>
+                <button class="btn btn-gray btn-sm" style="margin-top:6px" onclick="S.providers[0].rules.push({min:0,max:99999,price:0});renderProviders()">+ 添加区间</button>
+            </div>
+        
+            <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <strong style="font-size:13px">CBS</strong>
+                    <button class="btn btn-red btn-sm" style="padding:2px 8px" onclick="S.providers.splice(1,1);renderProviders()">删除</button>
+                </div>
+                <table class="rule-table"><thead><tr><th>最低(g)</th><th>最高(g)</th><th>运费($)</th><th>操作</th></tr></thead><tbody>
+                <tr>
+                    <td><input type="number" value="0" onchange="S.providers[1].rules[0].min=+this.value"></td>
+                    <td><input type="number" value="113" onchange="S.providers[1].rules[0].max=+this.value"></td>
+                    <td><input type="number" value="4.24" onchange="S.providers[1].rules[0].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(0,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="113" onchange="S.providers[1].rules[1].min=+this.value"></td>
+                    <td><input type="number" value="227" onchange="S.providers[1].rules[1].max=+this.value"></td>
+                    <td><input type="number" value="4.28" onchange="S.providers[1].rules[1].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(1,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="227" onchange="S.providers[1].rules[2].min=+this.value"></td>
+                    <td><input type="number" value="340" onchange="S.providers[1].rules[2].max=+this.value"></td>
+                    <td><input type="number" value="4.97" onchange="S.providers[1].rules[2].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(2,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="340" onchange="S.providers[1].rules[3].min=+this.value"></td>
+                    <td><input type="number" value="454" onchange="S.providers[1].rules[3].max=+this.value"></td>
+                    <td><input type="number" value="5.94" onchange="S.providers[1].rules[3].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(3,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="454" onchange="S.providers[1].rules[4].min=+this.value"></td>
+                    <td><input type="number" value="907" onchange="S.providers[1].rules[4].max=+this.value"></td>
+                    <td><input type="number" value="10.11" onchange="S.providers[1].rules[4].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(4,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="907" onchange="S.providers[1].rules[5].min=+this.value"></td>
+                    <td><input type="number" value="1361" onchange="S.providers[1].rules[5].max=+this.value"></td>
+                    <td><input type="number" value="11.04" onchange="S.providers[1].rules[5].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(5,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="1361" onchange="S.providers[1].rules[6].min=+this.value"></td>
+                    <td><input type="number" value="1814" onchange="S.providers[1].rules[6].max=+this.value"></td>
+                    <td><input type="number" value="11.04" onchange="S.providers[1].rules[6].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(6,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="1814" onchange="S.providers[1].rules[7].min=+this.value"></td>
+                    <td><input type="number" value="99999" onchange="S.providers[1].rules[7].max=+this.value"></td>
+                    <td><input type="number" value="13" onchange="S.providers[1].rules[7].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[1].rules.splice(7,1);renderProviders()">×</button></td>
+                </tr></tbody></table>
+                <button class="btn btn-gray btn-sm" style="margin-top:6px" onclick="S.providers[1].rules.push({min:0,max:99999,price:0});renderProviders()">+ 添加区间</button>
+            </div>
+        
+            <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <strong style="font-size:13px">USPS</strong>
+                    <button class="btn btn-red btn-sm" style="padding:2px 8px" onclick="S.providers.splice(2,1);renderProviders()">删除</button>
+                </div>
+                <table class="rule-table"><thead><tr><th>最低(g)</th><th>最高(g)</th><th>运费($)</th><th>操作</th></tr></thead><tbody>
+                <tr>
+                    <td><input type="number" value="0" onchange="S.providers[2].rules[0].min=+this.value"></td>
+                    <td><input type="number" value="113" onchange="S.providers[2].rules[0].max=+this.value"></td>
+                    <td><input type="number" value="8.38" onchange="S.providers[2].rules[0].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(0,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="113" onchange="S.providers[2].rules[1].min=+this.value"></td>
+                    <td><input type="number" value="227" onchange="S.providers[2].rules[1].max=+this.value"></td>
+                    <td><input type="number" value="8.38" onchange="S.providers[2].rules[1].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(1,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="227" onchange="S.providers[2].rules[2].min=+this.value"></td>
+                    <td><input type="number" value="340" onchange="S.providers[2].rules[2].max=+this.value"></td>
+                    <td><input type="number" value="9.84" onchange="S.providers[2].rules[2].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(2,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="340" onchange="S.providers[2].rules[3].min=+this.value"></td>
+                    <td><input type="number" value="454" onchange="S.providers[2].rules[3].max=+this.value"></td>
+                    <td><input type="number" value="9.84" onchange="S.providers[2].rules[3].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(3,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="454" onchange="S.providers[2].rules[4].min=+this.value"></td>
+                    <td><input type="number" value="907" onchange="S.providers[2].rules[4].max=+this.value"></td>
+                    <td><input type="number" value="12.58" onchange="S.providers[2].rules[4].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(4,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="907" onchange="S.providers[2].rules[5].min=+this.value"></td>
+                    <td><input type="number" value="1361" onchange="S.providers[2].rules[5].max=+this.value"></td>
+                    <td><input type="number" value="12.58" onchange="S.providers[2].rules[5].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(5,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="1361" onchange="S.providers[2].rules[6].min=+this.value"></td>
+                    <td><input type="number" value="1814" onchange="S.providers[2].rules[6].max=+this.value"></td>
+                    <td><input type="number" value="14.76" onchange="S.providers[2].rules[6].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(6,1);renderProviders()">×</button></td>
+                </tr><tr>
+                    <td><input type="number" value="1814" onchange="S.providers[2].rules[7].min=+this.value"></td>
+                    <td><input type="number" value="99999" onchange="S.providers[2].rules[7].max=+this.value"></td>
+                    <td><input type="number" value="16" onchange="S.providers[2].rules[7].price=+this.value" step="0.01"></td>
+                    <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.providers[2].rules.splice(7,1);renderProviders()">×</button></td>
+                </tr></tbody></table>
+                <button class="btn btn-gray btn-sm" style="margin-top:6px" onclick="S.providers[2].rules.push({min:0,max:99999,price:0});renderProviders()">+ 添加区间</button>
+            </div>
+        </div>
                 <div class="btn-row">
                     <button class="btn btn-gray btn-sm" onclick="addProvider()">+ 添加物流商</button>
                     <button class="btn btn-blue btn-sm" onclick="saveLogistics()">保存规则</button>
@@ -473,7 +639,27 @@
                 <p class="hint-text" style="margin-bottom:8px">按克重区间设置国际运费($/kg)，用于国内发货模式的到仓成本计算</p>
                 <table class="rule-table" id="intlTable">
                     <thead><tr><th>最低克重(g)</th><th>最高克重(g)</th><th>单价($/kg)</th><th>操作</th></tr></thead>
-                    <tbody id="intlBody"></tbody>
+                    <tbody id="intlBody"><tr>
+            <td><input type="number" value="0" onchange="S.intlRates[0].min=+this.value"></td>
+            <td><input type="number" value="200" onchange="S.intlRates[0].max=+this.value"></td>
+            <td><input type="number" value="8" onchange="S.intlRates[0].price=+this.value" step="0.01"></td>
+            <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.intlRates.splice(0,1);renderIntlRates()">×</button></td>
+        </tr><tr>
+            <td><input type="number" value="200" onchange="S.intlRates[1].min=+this.value"></td>
+            <td><input type="number" value="500" onchange="S.intlRates[1].max=+this.value"></td>
+            <td><input type="number" value="7" onchange="S.intlRates[1].price=+this.value" step="0.01"></td>
+            <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.intlRates.splice(1,1);renderIntlRates()">×</button></td>
+        </tr><tr>
+            <td><input type="number" value="500" onchange="S.intlRates[2].min=+this.value"></td>
+            <td><input type="number" value="1000" onchange="S.intlRates[2].max=+this.value"></td>
+            <td><input type="number" value="6" onchange="S.intlRates[2].price=+this.value" step="0.01"></td>
+            <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.intlRates.splice(2,1);renderIntlRates()">×</button></td>
+        </tr><tr>
+            <td><input type="number" value="1000" onchange="S.intlRates[3].min=+this.value"></td>
+            <td><input type="number" value="99999" onchange="S.intlRates[3].max=+this.value"></td>
+            <td><input type="number" value="5" onchange="S.intlRates[3].price=+this.value" step="0.01"></td>
+            <td><button class="btn btn-red btn-sm" style="padding:1px 6px" onclick="S.intlRates.splice(3,1);renderIntlRates()">×</button></td>
+        </tr></tbody>
                 </table>
                 <div class="btn-row">
                     <button class="btn btn-gray btn-sm" onclick="addIntlRate()">+ 添加区间</button>
@@ -529,7 +715,7 @@
                     </div>
                 </div>
                 <div class="check-row" style="margin-bottom:10px">
-                    <input type="checkbox" id="syncAuto" checked>
+                    <input type="checkbox" id="syncAuto" checked="">
                     <label for="syncAuto">自动同步（每5秒检查更新）</label>
                 </div>
                 <div class="btn-row">
@@ -545,7 +731,7 @@
                 <p class="hint-text" style="margin-bottom:10px">导出/导入全部数据用于备份，或清空本地数据</p>
                 <div class="btn-row">
                     <button class="btn btn-gray btn-sm" onclick="exportAllJSON()">📦 导出全部(JSON)</button>
-                    <button class="btn btn-gray btn-sm" onclick="document.getElementById('importJSON').click()">📂 导入数据(JSON)</button>
+                    <button class="btn btn-gray btn-sm" onclick="document.getElementById(&#39;importJSON&#39;).click()">📂 导入数据(JSON)</button>
                     <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importAllJSON(event)">
                     <button class="btn btn-red btn-sm" onclick="clearAllData()">🗑️ 清空全部数据</button>
                 </div>
@@ -576,6 +762,11 @@
             <div class="input-group">
                 <label>操作人</label>
                 <input type="text" id="mOperator" placeholder="如：张三（记录是谁添加的）">
+            </div>
+            <div class="input-group">
+                <label>尾程费用 ($/件)</label>
+                <input type="number" id="mLastMileCost" step="0.01" min="0" placeholder="0=批量时自动匹配">
+                <div class="hint-text">批量计算时可选读取此值，留空0则按物流规则自动匹配</div>
             </div>
             <div class="input-group">
                 <label>发货模式</label>
@@ -630,7 +821,8 @@
         intlRates: [{min:0,max:200,price:8},{min:200,max:500,price:7},{min:500,max:1000,price:6},{min:1000,max:99999,price:5}],
         library: [],
         batchItems: [],
-        calcRecords: []
+        calcRecords: [],
+        batchLmMode: 'auto'
     };
 
     // ============ CLOUD SYNC ============
@@ -673,6 +865,7 @@
         return {
             providers: S.providers, intlRates: S.intlRates, library: S.library,
             batchItems: S.batchItems, calcRecords: S.calcRecords,
+            batchLmMode: S.batchLmMode || 'auto',
             globalParams: { rate:V('exchangeRate'), prem:V('premiumRate'), sub:V('subsidyAmount'), subThr:V('subsidyThreshold'), asr:V('afterSaleRate') },
             fixedParams: { packFee:V('fPackFee'), fmBase:V('fFmBase'), fmWeight:V('fFmWeight'), delivFee:V('fDelivFee'), preList:V('fPreList') }
         };
@@ -684,6 +877,7 @@
         if(d.library) S.library=d.library;
         if(d.batchItems) S.batchItems=d.batchItems;
         if(d.calcRecords) S.calcRecords=d.calcRecords;
+        if(d.batchLmMode) S.batchLmMode=d.batchLmMode;
         if(d.globalParams){ const g=d.globalParams; if(g.rate!=null)$('exchangeRate').value=g.rate; if(g.prem!=null)$('premiumRate').value=g.prem; if(g.sub!=null)$('subsidyAmount').value=g.sub; if(g.subThr!=null)$('subsidyThreshold').value=g.subThr; if(g.asr!=null)$('afterSaleRate').value=g.asr; }
         if(d.fixedParams){ const f=d.fixedParams; if(f.packFee!=null)$('fPackFee').value=f.packFee; if(f.fmBase!=null)$('fFmBase').value=f.fmBase; if(f.fmWeight!=null)$('fFmWeight').value=f.fmWeight; if(f.delivFee!=null)$('fDelivFee').value=f.delivFee; if(f.preList!=null)$('fPreList').value=f.preList; }
     }
@@ -728,7 +922,8 @@
         toast('同步配置已保存');
     }
     function startAutoSync() { if(syncTimer)clearInterval(syncTimer); if(syncCfg.autoSync&&syncCfg.apiUrl&&syncCfg.apiKey) syncTimer=setInterval(doSync,syncCfg.interval); }
-    function renderAll() { renderProviders(); renderIntlRates(); renderLibrary(); renderCalcRecords(); renderBatch(); recalcAll(); }
+    function renderAll() { renderProviders(); renderIntlRates(); renderLibrary(); renderCalcRecords(); updateBatchLmToggle(); renderBatch(); recalcAll(); }
+    function updateBatchLmToggle() { const m=S.batchLmMode||'auto'; document.querySelectorAll('.batch-mode-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m)); }
 
     function exportAllJSON() { const blob=new Blob([JSON.stringify(collectState(),null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`利润计算器数据_${new Date().toISOString().slice(0,10)}.json`;a.click();toast('已导出'); }
     function importAllJSON(e) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{try{const d=JSON.parse(ev.target.result);applyState(d);saveState();renderAll();toast('数据已导入');syncLog('从JSON文件导入数据');}catch(err){toast('文件格式错误');}}; r.readAsText(f); e.target.value=''; }
@@ -1003,6 +1198,7 @@
                     ${p.mode==='domestic'?'克重: '+fmt(p.weight)+'g<br>':''}
                     ${p.mode==='overseas'?'运费: $'+fmt(p.shipUSD||0)+'<br>':''}
                     ${p.mode==='domestic'?'作图: ¥'+fmt(p.imgCost||0)+'<br>':''}
+                    ${p.lastMileCost>0?'💲 尾程: $'+fmt(p.lastMileCost)+'/件<br>':''}
                 </div>
                 <span class="lib-tag ${p.mode}">${p.mode==='overseas'?'海外工厂':'国内发货'}</span>
             </div>
@@ -1014,9 +1210,9 @@
         if(editingLibIdx>=0){
             const p=S.library[editingLibIdx];
             $('mName').value=p.name;$('mFactory').value=p.factory||'';$('mCost').value=p.cost;$('mWeight').value=p.weight||0;
-            $('mMode').value=p.mode;$('mShipUSD').value=p.shipUSD||0;$('mImgCost').value=p.imgCost||0;$('mOperator').value=p.operator||'';
+            $('mMode').value=p.mode;$('mShipUSD').value=p.shipUSD||0;$('mImgCost').value=p.imgCost||0;$('mOperator').value=p.operator||'';$('mLastMileCost').value=p.lastMileCost||0;
         } else {
-            $('mName').value='';$('mFactory').value='';$('mCost').value='';$('mWeight').value='';$('mMode').value='overseas';$('mShipUSD').value='';$('mImgCost').value='0';$('mOperator').value='';
+            $('mName').value='';$('mFactory').value='';$('mCost').value='';$('mWeight').value='';$('mMode').value='overseas';$('mShipUSD').value='';$('mImgCost').value='0';$('mOperator').value='';$('mLastMileCost').value='0';
         }
         toggleModalFields();
         $('productModal').classList.add('show');
@@ -1032,7 +1228,7 @@
         if(!name){toast('请输入产品名称');return;}
         const factory=$('mFactory').value.trim();
         const operator=$('mOperator').value.trim();
-        const p={name, factory, operator, cost:V('mCost'), weight:V('mWeight'), mode:$('mMode').value, shipUSD:V('mShipUSD'), imgCost:V('mImgCost')};
+        const p={name, factory, operator, cost:V('mCost'), weight:V('mWeight'), mode:$('mMode').value, shipUSD:V('mShipUSD'), imgCost:V('mImgCost'), lastMileCost:V('mLastMileCost')};
         if(editingLibIdx>=0) S.library[editingLibIdx]=p; else S.library.push(p);
         closeProductModal(); renderLibrary(); saveState(); toast('产品已保存');
     }
@@ -1042,7 +1238,7 @@
     // ============ BATCH IMPORT ============
     let pendingImport = [];
     function downloadTemplate(){
-        const csv = '\uFEFF产品名称,工厂信息,操作人,采购成本(¥/件),克重(g),发货模式(海外工厂/国内发货),单件运费($),作图成本(¥/单)\n连衣裙A款,广州白云工厂,张三,25.00,280,海外工厂,3.50,\n手机壳B款,深圳龙岗工厂,李四,8.50,120,国内发货,,5.00\n连衣裙C款,,,32.00,350,海外工厂,4.20,';
+        const csv = '\uFEFF产品名称,工厂信息,操作人,采购成本(¥/件),克重(g),发货模式(海外工厂/国内发货),单件运费($),作图成本(¥/单),尾程费用($/件)\n连衣裙A款,广州白云工厂,张三,25.00,280,海外工厂,3.50,,0\n手机壳B款,深圳龙岗工厂,李四,8.50,120,国内发货,,5.00,0\n连衣裙C款,,,32.00,350,海外工厂,4.20,,2.50';
         const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -1073,9 +1269,10 @@
                 const modeStr = (cols[5]||'').trim();
                 const shipUSD = parseFloat(cols[6])||0;
                 const imgCost = parseFloat(cols[7])||0;
+                const lastMileCost = parseFloat(cols[8])||0;
                 if(!name){ errors.push(`第${i+1}行: 缺少产品名称`); continue; }
                 const mode = modeStr.includes('国内') ? 'domestic' : 'overseas';
-                pendingImport.push({name, factory, operator, cost, weight, mode, shipUSD, imgCost});
+                pendingImport.push({name, factory, operator, cost, weight, mode, shipUSD, imgCost, lastMileCost});
             }
             // Show preview
             let html = '';
@@ -1131,23 +1328,30 @@
     // ============ SINGLE PRODUCT PICKER ============
     function pickProductForSingle(){
         if(!S.library.length){toast('请先在"产品库"中添加产品');return;}
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay show';
-        modal.innerHTML = `<div class="modal">
+        const items=S.library.map((p,i)=>({p,i}));
+        const modal=document.createElement('div');
+        modal.className='modal-overlay show';
+        function renderList(filter){
+            const filtered=filter?items.filter(x=>x.p.name.toLowerCase().includes(filter)||((x.p.factory||'').toLowerCase().includes(filter))||((x.p.operator||'').toLowerCase().includes(filter))):items;
+            modal.querySelector('.pick-list-area').innerHTML=filtered.length?filtered.map(({p,i})=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px">
+                <input type="radio" name="singlePick" value="${i}" style="accent-color:var(--blue)">
+                <span style="font-weight:600">${escH(p.name)}</span>
+                <span style="color:var(--gray);font-size:11px">${p.operator?'👤'+escH(p.operator)+' · ':''}${p.factory?'🏭'+escH(p.factory)+' · ':''}${p.mode==='overseas'?'海外':'国内'} · ¥${fmt(p.cost)}</span>
+            </label>`).join(''):'<p style="color:var(--gray);font-size:13px;padding:20px 0;text-align:center">未找到匹配的产品</p>';
+        }
+        modal.innerHTML=`<div class="modal">
             <h3>从产品库选择</h3>
-            <div style="max-height:320px;overflow-y:auto;margin-bottom:12px">
-                ${S.library.map((p,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px">
-                    <input type="radio" name="singlePick" value="${i}" style="accent-color:var(--blue)">
-                    <span style="font-weight:600">${escH(p.name)}</span>
-                    <span style="color:var(--gray);font-size:11px">${p.factory?'🏭'+escH(p.factory)+' · ':''}${p.mode==='overseas'?'海外':'国内'} · ¥${fmt(p.cost)}</span>
-                </label>`).join('')}
-            </div>
+            <input type="text" class="product-search" placeholder="🔍 搜索产品名称/工厂/操作人..." oninput="window._spFilter=this.value.toLowerCase()">
+            <div class="pick-list-area" style="max-height:320px;overflow-y:auto;margin-bottom:12px"></div>
             <div class="btn-row">
                 <button class="btn btn-gray" onclick="this.closest('.modal-overlay').remove()">取消</button>
                 <button class="btn btn-blue" onclick="confirmSinglePick(this)">确认选择</button>
             </div>
         </div>`;
         document.body.appendChild(modal);
+        renderList('');
+        modal.querySelector('.product-search').addEventListener('input',function(){renderList(this.value.toLowerCase());});
+        modal.querySelector('.product-search').focus();
     }
     function confirmSinglePick(btn){
         const radio = btn.closest('.modal').querySelector('input[name="singlePick"]:checked');
@@ -1297,11 +1501,26 @@
     // ============ BATCH ============
     function openProductPicker(){
         if(!S.library.length){toast('请先在"产品库"中添加产品');return;}
-        const names = S.library.map((p,i)=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 0;font-size:13px;cursor:pointer"><input type="checkbox" class="pick-chk" value="${i}"> ${escH(p.name)} <span style="color:var(--gray);font-size:11px">(${p.factory?escH(p.factory)+' · ':''} ${p.mode==='overseas'?'海外工厂':'国内发货'}, ¥${fmt(p.cost)})</span></label>`).join('');
-        const modal = document.createElement('div');
+        const items=S.library.map((p,i)=>({p,i}));
+        const modal=document.createElement('div');
         modal.className='modal-overlay show';
-        modal.innerHTML=`<div class="modal"><h3>选择产品添加到批量计算</h3><div style="max-height:300px;overflow-y:auto;padding:4px 0">${names}</div><div class="btn-row"><button class="btn btn-gray" onclick="this.closest('.modal-overlay').remove()">取消</button><button class="btn btn-blue" onclick="confirmPick(this)">确认添加</button></div></div>`;
+        function renderList(filter){
+            const filtered=filter?items.filter(x=>x.p.name.toLowerCase().includes(filter)||((x.p.factory||'').toLowerCase().includes(filter))||((x.p.operator||'').toLowerCase().includes(filter))):items;
+            modal.querySelector('.pick-list-area').innerHTML=filtered.length?filtered.map(({p,i})=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 0;font-size:13px;cursor:pointer"><input type="checkbox" class="pick-chk" value="${i}"> ${escH(p.name)} <span style="color:var(--gray);font-size:11px">${p.operator?'👤'+escH(p.operator)+' · ':''}${p.factory?'🏭'+escH(p.factory)+' · ':''}${p.mode==='overseas'?'海外工厂':'国内发货'}, ¥${fmt(p.cost)}${p.lastMileCost>0?' · 尾程$'+fmt(p.lastMileCost):''}</span></label>`).join(''):'<p style="color:var(--gray);font-size:13px;padding:20px 0;text-align:center">未找到匹配的产品</p>';
+        }
+        modal.innerHTML=`<div class="modal"><h3>选择产品添加到批量计算</h3>
+            <input type="text" class="product-search" placeholder="🔍 搜索产品名称/工厂/操作人...">
+            <div class="pick-list-area" style="max-height:300px;overflow-y:auto;padding:4px 0"></div>
+            <div class="btn-row"><button class="btn btn-gray" onclick="this.closest('.modal-overlay').remove()">取消</button><button class="btn btn-blue" onclick="confirmPick(this)">确认添加</button></div></div>`;
         document.body.appendChild(modal);
+        renderList('');
+        modal.querySelector('.product-search').addEventListener('input',function(){renderList(this.value.toLowerCase());});
+        modal.querySelector('.product-search').focus();
+    }
+    function setBatchLmMode(m){
+        S.batchLmMode=m;
+        document.querySelectorAll('.batch-mode-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+        recalcBatch();saveState();
     }
     function confirmPick(btn){
         const chks=btn.closest('.modal').querySelectorAll('.pick-chk:checked');
@@ -1319,22 +1538,44 @@
 
     function recalcBatch(){
         const g=gp(), gPrice=V('bPrice'), gDisc=V('bDiscount')||100, hasSub=$('bHasSub').checked;
+        const lmMode=S.batchLmMode||'auto';
         let tPre=0,tAfter=0,pCnt=0,lCnt=0;
         $('batchBody').innerHTML = S.batchItems.map((p,i)=>{
             const price=p.price||gPrice, disc=p.disc||gDisc;
             if(!price||!p.cost) return `<tr><td>${escH(p.name)}</td><td colspan="17" style="color:#94a3b8">请填写核价</td></tr>`;
             let params={mode:p.mode,price,disc,cost:p.cost,qty:p.qty||1,hasSub};
+            let lmDetail='',costDetail='';
             if(p.mode==='overseas'){
                 params.shipUSD=p.shipUSD||0;
-                // 海外工厂尾程：按克重匹配
-                params.lastMile = p.weight>0 ? (getLastMile(0,p.weight)||0) : 0;
+                const shipRmb=(p.shipUSD||0)*g.rate;
+                if(lmMode==='stored'){
+                    params.lastMile=p.lastMileCost||0;
+                    lmDetail=p.lastMileCost>0?`产品录入尾程$${fmt(p.lastMileCost)}`:'产品未录入尾程(=0)';
+                } else {
+                    params.lastMile=p.weight>0?(getLastMile(0,p.weight)||0):0;
+                    if(params.lastMile>0){const pr=S.providers[0];const rule=pr.rules.find(r=>p.weight>=r.min&&p.weight<r.max);lmDetail=`${pr.name}: ${rule?rule.min+'-'+rule.max+'g':'无匹配'}→$${fmt(params.lastMile)}`;}
+                    else lmDetail='未匹配物流规则';
+                }
+                costDetail=`采购¥${fmt(p.cost)}+到仓运费$${fmt(p.shipUSD||0)}×${g.rate}=${fmt(p.cost+shipRmb)}/件`;
             } else {
                 params.weight=p.weight||0;params.imgCost=p.imgCost||0;
                 params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;
                 params.delivFee=V('fDelivFee');params.preList=V('fPreList');
-                params.lastMile=getLastMile(0,params.weight)||0; // default Gofo
+                if(lmMode==='stored'){
+                    params.lastMile=p.lastMileCost||0;
+                    lmDetail=p.lastMileCost>0?`产品录入尾程$${fmt(p.lastMileCost)}`:'产品未录入尾程(=0)';
+                } else {
+                    params.lastMile=getLastMile(0,params.weight)||0;
+                    if(params.lastMile>0){const pr=S.providers[0];const rule=pr.rules.find(r=>params.weight>=r.min&&params.weight<r.max);lmDetail=`${pr.name}: ${rule?rule.min+'-'+rule.max+'g':'无匹配'}→$${fmt(params.lastMile)}`;}
+                    else lmDetail='未匹配物流规则';
+                }
+                const wkg=params.weight/1000;const ir=getIntlRate(params.weight)||0;
+                const fm=params.weight>0?(params.fmBase||50)/((params.fmWeight||20)/params.weight*1000):0;
+                const imgPU=(params.imgCost||0)/Math.max(1,params.qty);
+                costDetail=`采购¥${fmt(p.cost)}+作图¥${fmt(imgPU)}+国际${wkg.toFixed(2)}kg×$${ir}+打包¥${fmt(params.packFee)}+头程¥${fmt(fm)}+投递$${fmt(params.delivFee)}+预上网¥${fmt(params.preList)}`;
             }
             const r=calcProfit(params);
+            const totalCostDetail=`(到仓+尾程)×件数 = (${fmt(r.wc)}+${fmt(r.lm*g.rate)})×${p.qty||1}`;
             tPre+=r.preProfit;tAfter+=r.afterProfit;
             if(r.preProfit>=0)pCnt++;else lCnt++;
             return `<tr>
@@ -1344,15 +1585,15 @@
                 <td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${p.mode==='overseas'?'background:#dbeafe;color:#1d4ed8':'background:#dcfce7;color:#166534'}">${p.mode==='overseas'?'海外':'国内'}</span></td>
                 <td><input type="number" value="${p.cost}" onchange="S.batchItems[${i}].cost=+this.value;recalcBatch();saveState()" step="0.01"></td>
                 <td>${p.weight||'-'}</td>
-                <td style="font-weight:600">${fmt(r.wc)}</td>
+                <td style="font-weight:600" title="${costDetail}">${fmt(r.wc)}</td>
                 <td><input type="number" value="${p.price||''}" onchange="S.batchItems[${i}].price=+this.value;recalcBatch();saveState()" placeholder="全局" step="0.01"></td>
                 <td><input type="number" value="${p.disc||''}" onchange="S.batchItems[${i}].disc=+this.value;recalcBatch();saveState()" placeholder="全局" step="1" style="width:50px"></td>
                 <td><input type="number" value="${p.qty||1}" onchange="S.batchItems[${i}].qty=+this.value;recalcBatch();saveState()" style="width:45px" min="1"></td>
                 <td>${$U(r.tp)}</td><td>${$U(r.sa)}</td>
                 <td style="color:${r.hasSub?'var(--green)':'#cbd5e1'}">${r.hasSub?$U(r.subUSD):'无'}</td>
-                <td>${r.lm>0?$U(r.lm):'-'}</td>
+                <td title="${lmDetail}">${r.lm>0?$U(r.lm):'-'}</td>
                 <td style="color:var(--green);font-weight:600">${$C(r.revenueCNY)}</td>
-                <td style="color:var(--red)">${$C(r.totalCostCNY)}</td>
+                <td style="color:var(--red)" title="${totalCostDetail}">${$C(r.totalCostCNY)}</td>
                 <td style="color:${r.preProfit>=0?'var(--green)':'var(--red)'};font-weight:700">${$C(r.preProfit)}</td>
                 <td style="color:${r.afterProfit>=0?'var(--green)':'var(--red)'};font-weight:600">${$C(r.afterProfit)}</td>
                 <td style="color:${r.margin>=0?'var(--green)':'var(--red)'}">${fmt(r.margin,1)}%</td>
@@ -1365,6 +1606,7 @@
     function exportBatch(){
         if(!S.batchItems.length){toast('暂无数据');return;}
         const g=gp(),gP=V('bPrice'),gD=V('bDiscount')||100,hasSub=$('bHasSub').checked;
+        const lmMode=S.batchLmMode||'auto';
         let t='产品\t操作人\t工厂\t模式\t成本¥\t克重g\t到仓¥/件\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
         S.batchItems.forEach(p=>{
             const price=p.price||gP,disc=p.disc||gD;
@@ -1372,9 +1614,10 @@
             let params={mode:p.mode,price,disc,cost:p.cost,qty:p.qty||1,hasSub};
             if(p.mode==='overseas'){
                 params.shipUSD=p.shipUSD||0;
-                params.lastMile = p.weight>0 ? (getLastMile(0,p.weight)||0) : 0;
+                params.lastMile=lmMode==='stored'?(p.lastMileCost||0):(p.weight>0?(getLastMile(0,p.weight)||0):0);
             } else {
-                params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');params.lastMile=getLastMile(0,params.weight)||0;
+                params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');
+                params.lastMile=lmMode==='stored'?(p.lastMileCost||0):(getLastMile(0,params.weight)||0);
             }
             const r=calcProfit(params);
             t+=`${p.name}\t${p.operator||'-'}\t${p.factory||'-'}\t${p.mode==='overseas'?'海外工厂':'国内发货'}\t${p.cost}\t${p.weight||0}\t${fmt(r.wc)}\t${fmt(price)}\t${disc}\t${p.qty||1}\t${fmt(r.tp)}\t${fmt(r.sa)}\t${r.hasSub?fmt(r.subUSD):'0'}\t${r.lm>0?fmt(r.lm):'0'}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
@@ -1385,6 +1628,7 @@
     function exportBatchCSV(){
         if(!S.batchItems.length){toast('暂无数据');return;}
         const g=gp(),gP=V('bPrice'),gD=V('bDiscount')||100,hasSub=$('bHasSub').checked;
+        const lmMode=S.batchLmMode||'auto';
         let csv='\uFEFF产品,操作人,工厂,发货模式,采购成本¥,克重g,到仓成本¥/件,核价$,折扣%,件数,成交价$,销售额$(含溢价),运补$/单,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率%,计算公式说明\n';
         S.batchItems.forEach(p=>{
             const price=p.price||gP,disc=p.disc||gD;
@@ -1393,12 +1637,15 @@
             let formula='';
             if(p.mode==='overseas'){
                 params.shipUSD=p.shipUSD||0;
-                params.lastMile = p.weight>0 ? (getLastMile(0,p.weight)||0) : 0;
-                formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 销售额=成交价×(1+${(V('premiumRate')||25)}%)=${fmt(price*disc/100*(1+(V('premiumRate')||25)/100))}; 到仓=采购¥${p.cost}+运费$${p.shipUSD||0}×${V('exchangeRate')||6.5}; 尾程=${$U(params.lastMile)}; 运补=${hasSub&&price*disc/100*(1+(V('premiumRate')||25)/100)<=V('subsidyThreshold')?'$'+fmt(V('subsidyAmount')):'无'}(每单1次)`;
+                params.lastMile=lmMode==='stored'?(p.lastMileCost||0):(p.weight>0?(getLastMile(0,p.weight)||0):0);
+                const lmSrc=lmMode==='stored'?(p.lastMileCost>0?'产品录入$'+fmt(p.lastMileCost):'未录入(=0)'):(p.weight>0?'自动匹配':'无克重');
+                formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 到仓=采购¥${p.cost}+运费$${p.shipUSD||0}×${g.rate}; 尾程=${lmSrc}=$${fmt(params.lastMile)}; 运补=${hasSub&&price*disc/100*(1+(V('premiumRate')||25)/100)<=V('subsidyThreshold')?'$'+fmt(V('subsidyAmount')):'无'}(每单1次)`;
             }else{
-                params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');params.lastMile=getLastMile(0,params.weight)||0;
+                params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=V('fPackFee');params.fmBase=V('fFmBase');params.fmWeight=V('fFmWeight')||20;params.delivFee=V('fDelivFee');params.preList=V('fPreList');
+                params.lastMile=lmMode==='stored'?(p.lastMileCost||0):(getLastMile(0,params.weight)||0);
                 const wkg=(params.weight/1000).toFixed(3);
-                formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 到仓=采购${p.cost}+作图${params.imgCost}+国际运费${wkg}kg×$${getIntlRate(params.weight)||0}+打包${params.packFee}+头程${params.fmBase}÷(${(V('fFmWeight')||20)}÷${params.weight}×1000)+投递$${params.delivFee}+预上网${params.preList}; 尾程=${$U(params.lastMile)}`;
+                const lmSrc=lmMode==='stored'?(p.lastMileCost>0?'产品录入$'+fmt(p.lastMileCost):'未录入(=0)'):'自动匹配';
+                formula=`成交价=${fmt(price)}×${disc}%=${fmt(price*disc/100)}; 到仓=采购${p.cost}+作图${params.imgCost}+国际运费${wkg}kg×$${getIntlRate(params.weight)||0}+打包${params.packFee}+头程${params.fmBase}÷(${(V('fFmWeight')||20)}÷${params.weight}×1000)+投递$${params.delivFee}+预上网${params.preList}; 尾程=${lmSrc}=$${fmt(params.lastMile)}`;
             }
             const r=calcProfit(params);
             csv+=`"${p.name}","${p.operator||'-'}","${p.factory||'-'}",${p.mode==='overseas'?'海外工厂':'国内发货'},${p.cost},${p.weight||0},${fmt(r.wc)},${fmt(price)},${disc},${p.qty||1},${fmt(r.tp)},${fmt(r.sa)},${r.hasSub?fmt(r.subUSD):0},${r.lm>0?fmt(r.lm):0},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)},"${formula}"\n`;
@@ -1461,8 +1708,10 @@
         renderIntlRates();
         renderLibrary();
         renderCalcRecords();
+        updateBatchLmToggle();
         recalcAll();
     });
     </script>
-</body>
-</html>
+
+
+</body></html>
