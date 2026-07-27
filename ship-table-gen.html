@@ -35,8 +35,14 @@ table.preview{width:100%;border-collapse:collapse;font-size:12px;white-space:now
 table.preview th{background:#f5f7fa;padding:8px 10px;text-align:left;font-weight:600;border-bottom:2px solid #e0e0e0;position:sticky;top:0}
 table.preview td{padding:6px 10px;border-bottom:1px solid #eee}
 table.preview tr:hover td{background:#f9fbfd}
+/* 错误行标红 */
+table.preview tr.row-error td{background:#fff0f0;color:#c0392b}
+table.preview tr.row-error:hover td{background:#ffe0e0}
+table.preview tr.row-dup td{background:#fff8e1;color:#e67e22}
+table.preview tr.row-dup:hover td{background:#fff0c0}
 .stats{font-size:13px;color:#888;margin-bottom:10px}
 .stats b{color:#333}
+.stats .warn-text{color:#e74c3c;margin-left:10px}
 .empty-msg{text-align:center;padding:40px;color:#999;font-size:14px}
 .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
 .tag-ok{background:#e8f5e9;color:#27ae60}
@@ -82,10 +88,14 @@ table.preview tr:hover td{background:#f9fbfd}
       <input type="number" id="cargoValue" placeholder="填写货值金额" step="0.01" min="0">
     </div>
     <div class="form-item">
+      <label>备注</label>
+      <input type="text" id="remark" placeholder="选填">
+    </div>
+    <div class="form-item">
       <label>自动签收</label>
       <select id="autoSign">
-        <option value="是">是</option>
         <option value="否">否</option>
+        <option value="是">是</option>
       </select>
     </div>
   </div>
@@ -106,6 +116,31 @@ table.preview tr:hover td{background:#f9fbfd}
 </div>
 
 <script>
+// ====== 参数历史记忆 ======
+const PARAM_KEY = 'ship_table_params';
+function loadParams() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PARAM_KEY) || '{}');
+    if (saved.senderPhone) document.getElementById('senderPhone').value = saved.senderPhone;
+    if (saved.deliverDays) document.getElementById('deliverDays').value = saved.deliverDays;
+    if (saved.cargoValue) document.getElementById('cargoValue').value = saved.cargoValue;
+    if (saved.remark !== undefined) document.getElementById('remark').value = saved.remark;
+    if (saved.autoSign) document.getElementById('autoSign').value = saved.autoSign;
+  } catch(e) {}
+}
+function saveParams() {
+  const obj = {
+    senderPhone: document.getElementById('senderPhone').value,
+    deliverDays: document.getElementById('deliverDays').value,
+    cargoValue: document.getElementById('cargoValue').value,
+    remark: document.getElementById('remark').value,
+    autoSign: document.getElementById('autoSign').value
+  };
+  localStorage.setItem(PARAM_KEY, JSON.stringify(obj));
+}
+// 页面加载时恢复
+loadParams();
+
 // ====== 列名映射：源列名 → 目标列名 ======
 const COL_MAP = {
   '发货人姓名': '发货人姓名',
@@ -115,7 +150,6 @@ const COL_MAP = {
   '发货人省份': '发货人省份',
   '收货人姓名': '收货人姓名',
   '收货人电话': '收货人电话',
-  '收货人地址': '收货人地址',
   '收货人省份': '收货人省份',
   '收货人城市': '收货人城市',
   '收件人邮编': '收件人邮编',
@@ -133,6 +167,8 @@ const TARGET_COLS = [
 
 let srcRows = [];   // 上传的源数据
 let outRows = [];   // 生成的目标数据
+let srcFileName = ''; // 源文件名（不含扩展名）
+let rowErrors = [];  // 每行的错误标记
 
 // ====== 文件上传 ======
 const dropZone = document.getElementById('dropZone');
@@ -152,6 +188,9 @@ function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (!['xlsx','xls','csv'].includes(ext)) { alert('请上传 xlsx/xls/csv 文件'); return; }
 
+  // 保存文件名（不含扩展名）用于导出命名
+  srcFileName = file.name.substring(0, file.name.lastIndexOf('.'));
+
   const reader = new FileReader();
   reader.onload = e => {
     try {
@@ -160,9 +199,19 @@ function handleFile(file) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
       if (!json.length) { alert('表格为空，请检查文件'); return; }
-      srcRows = json;
+
+      // 过滤空行：所有值都是空字符串的行
+      const filtered = json.filter(row => {
+        return Object.values(row).some(v => v !== '' && v !== null && v !== undefined);
+      });
+      const emptyCount = json.length - filtered.length;
+
+      srcRows = filtered;
       fileInfo.style.display = 'block';
-      fileInfo.innerHTML = '已加载 <b>' + file.name + '</b>，共 <b>' + json.length + '</b> 行数据，表头：' + Object.keys(json[0]).join('、');
+      let info = '已加载 <b>' + file.name + '</b>，有效 <b>' + filtered.length + '</b> 行数据';
+      if (emptyCount > 0) info += '（已过滤 ' + emptyCount + ' 行空行）';
+      info += '，表头：' + Object.keys(filtered[0]).join('、');
+      fileInfo.innerHTML = info;
       checkReady();
     } catch (err) {
       alert('解析失败：' + err.message);
@@ -172,9 +221,9 @@ function handleFile(file) {
 }
 
 // ====== 参数校验 ======
-['senderPhone','deliverDays','cargoValue'].forEach(id => {
-  document.getElementById(id).addEventListener('input', checkReady);
-  document.getElementById(id).addEventListener('change', checkReady);
+['senderPhone','deliverDays','cargoValue','remark','autoSign'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => { checkReady(); saveParams(); });
+  document.getElementById(id).addEventListener('change', () => { checkReady(); saveParams(); });
 });
 
 function checkReady() {
@@ -191,24 +240,70 @@ function generate() {
   const val = parseFloat(document.getElementById('cargoValue').value) || 0;
   const sign = document.getElementById('autoSign').value;
 
-  outRows = srcRows.map(src => {
+  outRows = [];
+  rowErrors = [];
+
+  // 检测重复订单号
+  const orderCount = {};
+  srcRows.forEach(src => {
+    const oid = String(src['平台订单号'] || '').trim();
+    if (oid) {
+      orderCount[oid] = (orderCount[oid] || 0) + 1;
+    }
+  });
+  const dupOrders = Object.entries(orderCount).filter(([k,v]) => v > 1);
+
+  srcRows.forEach((src, idx) => {
     const row = {};
+    const errors = [];
+
     // 平台固定
     row['平台'] = 'Shein';
-    // 从源数据映射
+
+    // 从源数据映射（除了收货人地址，地址需要合并）
     for (const [srcCol, tgtCol] of Object.entries(COL_MAP)) {
+      if (srcCol === '收货人地址') continue; // 地址单独处理
       row[tgtCol] = src[srcCol] !== undefined ? src[srcCol] : '';
     }
+
+    // 合并收货人地址 + 收货人地址2
+    const addr1 = String(src['收货人地址'] || '').trim();
+    const addr2 = String(src['收货人地址2'] || '').trim();
+    row['收货人地址'] = addr2 ? addr1 + ' ' + addr2 : addr1;
+
+    // 重量：源数据是磅(lb)，转为kg（1磅=0.453592kg）
+    const lb = parseFloat(src['重量(kg)']);
+    row['重量(kg)'] = isNaN(lb) ? '' : (lb * 0.453592).toFixed(3);
+
     // 手动/固定值
     row['发货人电话'] = phone;
     row['达到天数'] = parseInt(days);
     row['货物名称'] = '';
     row['数量'] = 1;
     row['货值(元)'] = val;
-    row['备注'] = '';
+    row['备注'] = document.getElementById('remark').value;
     row['自动签收'] = sign;
-    return row;
+
+    // 校验：平台订单号为空
+    const oid = String(row['平台订单号'] || '').trim();
+    if (!oid) errors.push('no_order');
+
+    // 校验：收货人电话为空
+    const rphone = String(row['收货人电话'] || '').trim();
+    if (!rphone) errors.push('no_phone');
+
+    // 校验：重复订单号
+    if (oid && orderCount[oid] > 1) errors.push('dup_order');
+
+    outRows.push(row);
+    rowErrors.push(errors);
   });
+
+  // 重复订单号提醒
+  if (dupOrders.length > 0) {
+    const list = dupOrders.map(([k,v]) => k + '（×' + v + '）').join('、');
+    alert('发现 ' + dupOrders.length + ' 个重复订单号：\n' + list + '\n\n对应行已标黄提示，请核实后再导出。');
+  }
 
   renderPreview();
   document.getElementById('btnExport').disabled = false;
@@ -217,7 +312,18 @@ function generate() {
 function renderPreview() {
   const area = document.getElementById('previewArea');
   if (!outRows.length) { area.innerHTML = '<div class="empty-msg">无数据</div>'; return; }
-  document.getElementById('stats').innerHTML = '共 <b>' + outRows.length + '</b> 行数据';
+
+  // 统计
+  let errCount = 0, dupCount = 0;
+  rowErrors.forEach(e => {
+    if (e.includes('no_order') || e.includes('no_phone')) errCount++;
+    if (e.includes('dup_order')) dupCount++;
+  });
+
+  let statsHtml = '共 <b>' + outRows.length + '</b> 行数据';
+  if (errCount > 0) statsHtml += '<span class="warn-text">⚠ ' + errCount + ' 行缺失必填字段（标红）</span>';
+  if (dupCount > 0) statsHtml += '<span class="warn-text" style="color:#e67e22">⚠ ' + dupCount + ' 行订单号重复（标黄）</span>';
+  document.getElementById('stats').innerHTML = statsHtml;
 
   let html = '<table class="preview"><thead><tr>';
   TARGET_COLS.forEach(c => html += '<th>' + c + '</th>');
@@ -225,8 +331,12 @@ function renderPreview() {
 
   // 最多预览前 200 行
   const show = outRows.slice(0, 200);
-  show.forEach(r => {
-    html += '<tr>';
+  show.forEach((r, i) => {
+    const errs = rowErrors[i] || [];
+    let cls = '';
+    if (errs.includes('no_order') || errs.includes('no_phone')) cls = 'row-error';
+    else if (errs.includes('dup_order')) cls = 'row-dup';
+    html += '<tr class="' + cls + '">';
     TARGET_COLS.forEach(c => {
       let v = r[c];
       if (v === undefined || v === null) v = '';
@@ -257,9 +367,11 @@ function exportXlsx() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '发货数据');
 
+  // 用源文件名 + 日期时间，导出为xls格式
+  const name = srcFileName || '发货表格';
   const now = new Date();
-  const ts = now.getFullYear() + '' + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '_' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
-  XLSX.writeFile(wb, '发货表格_' + ts + '.xlsx');
+  const ts = String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + String(now.getHours()).padStart(2, '0');
+  XLSX.writeFile(wb, '生成表格-' + name + ts + '.xls', { bookType: 'xls' });
 }
 </script>
 </body>
