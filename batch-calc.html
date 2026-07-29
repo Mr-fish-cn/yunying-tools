@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量利润计算 - 运营工具箱</title>
+    <style>
+        :root { --blue: #3b82f6; --green: #10b981; --red: #ef4444; --gray: #64748b; --bg: #f0f4f8; --card: #fff; --border: #e2e8f0; --text: #1e293b; --text2: #475569; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+        
+        /* Navigation */
+        .nav { background: #fff; border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 52px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .nav-logo { font-size: 18px; font-weight: 700; color: var(--blue); margin-right: 30px; }
+        .nav-links { display: flex; gap: 4px; }
+        .nav-links a { padding: 8px 16px; border-radius: 6px; text-decoration: none; color: var(--text2); font-size: 13px; font-weight: 500; transition: all .2s; }
+        .nav-links a:hover { background: #f1f5f9; color: var(--text); }
+        .nav-links a.active { background: var(--blue); color: #fff; }
+        
+        /* Container - Full Width */
+        .container { padding: 16px 20px; }
+        
+        /* Sync Bar */
+        .sync-bar { display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; margin-bottom:12px; font-size:12px; color:#0369a1; }
+        .sync-dot { width:8px;height:8px;border-radius:50%;display:inline-block; }
+        .sync-dot.syncing { background:#f59e0b;animation:pulse 1s infinite; }
+        .sync-dot.synced { background:#10b981; }
+        .sync-dot.error { background:#ef4444; }
+        .sync-dot.local { background:#94a3b8; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        
+        /* Card */
+        .card { background: var(--card); border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .card-title .icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        
+        /* Settings */
+        .settings-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        .settings-item { display: flex; flex-direction: column; gap: 2px; }
+        .settings-item label { font-size: 11px; color: var(--gray); font-weight: 500; }
+        .settings-item input, .settings-item select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 100px; background: #fafbfc; }
+        .settings-item input:focus, .settings-item select:focus { outline: none; border-color: var(--blue); }
+        
+        /* Batch Select Area */
+        .batch-select-area { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+        .batch-product-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 12px; color: #1d4ed8; max-width: 200px; }
+        .batch-product-tag span.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .batch-product-tag .remove { cursor: pointer; color: #93c5fd; font-weight: bold; }
+        .batch-product-tag .remove:hover { color: var(--red); }
+        
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all .15s; }
+        .btn-blue { background: var(--blue); color: #fff; }
+        .btn-blue:hover { background: #2563eb; }
+        .btn-green { background: var(--green); color: #fff; }
+        .btn-green:hover { background: #059669; }
+        .btn-gray { background: #f1f5f9; color: var(--text2); border: 1px solid var(--border); }
+        .btn-gray:hover { background: #e2e8f0; }
+        .btn-sm { padding: 4px 10px; font-size: 11px; }
+        .btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        
+        /* Checkbox */
+        .check-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+        .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); }
+        .check-row label { font-size: 12px; color: var(--text2); cursor: pointer; }
+        
+        /* Batch Mode Toggle */
+        .batch-mode-toggle { display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--border);width:fit-content; }
+        .batch-mode-toggle button { padding:5px 10px;border:none;background:#fff;font-size:11px;font-weight:500;cursor:pointer;color:var(--gray);transition:all .2s; }
+        .batch-mode-toggle button.active { background:var(--blue);color:#fff; }
+        
+        /* Provider Global */
+        .batch-prov-global { display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text2); }
+        .batch-prov-global select { padding:3px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px; }
+        .batch-prov-sel { padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:10px;background:#fafbfc;max-width:70px; }
+        
+        /* Table */
+        .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .data-table th { background: #f8fafc; padding: 6px 4px; text-align: center; font-weight: 600; color: var(--gray); font-size: 10px; border-bottom: 2px solid var(--border); position: sticky; top: 0; white-space: nowrap; }
+        .data-table td { padding: 4px 3px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+        .data-table input { width: 60px; padding: 3px 4px; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 10px; text-align: right; background: #fafbfc; }
+        .data-table input:focus { border-color: var(--blue); outline: none; background: #fff; }
+        
+        /* Toast */
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--text); color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 500; transition: transform .3s; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #fff; border-radius: 12px; padding: 20px; width: 90%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal h3 { font-size: 15px; margin-bottom: 14px; }
+        .product-search { width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:10px;background:#fafbfc; }
+        .product-search:focus { outline:none;border-color:var(--blue);background:#fff; }
+        
+        /* Reverse Calc */
+        .reverse-box { background: linear-gradient(135deg, #fffbeb, #fef9c3); border: 1px solid #fde68a; border-radius: 10px; padding: 14px; margin-top: 12px; }
+        .reverse-box .title { font-size: 13px; font-weight: 600; color: #92400e; margin-bottom: 10px; }
+        .reverse-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px; }
+        .reverse-row .input-group { display: flex; flex-direction: column; gap: 2px; }
+        .reverse-row .input-group label { font-size: 11px; color: var(--text2); font-weight: 500; }
+        .reverse-row .input-group input { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: #fafbfc; }
+        .reverse-result { background: #ecfdf5; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 12px; line-height: 1.7; border: 1px solid #a7f3d0; }
+        .reverse-result.warn { background: #fef2f2; border-color: #fecaca; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="nav">
+        <div class="nav-logo">💰 运营工具箱</div>
+        <div class="nav-links">
+            <a href="profit-calc.html">单件计算</a>
+            <a href="batch-calc.html" class="active">批量计算</a>
+            <a href="index.html">返回首页</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Sync Bar -->
+        <div class="sync-bar" id="syncBar">
+            <span class="sync-dot local" id="syncDot"></span>
+            <span id="syncText">本地模式</span>
+            <button class="btn btn-gray btn-sm" style="padding:3px 10px;font-size:11px" onclick="toggleSyncSettings()">⚙️ 同步设置</button>
+            <button class="btn btn-blue btn-sm" style="padding:3px 10px;font-size:11px" onclick="doSync()">🔄 同步</button>
+        </div>
+
+        <!-- Global Parameters -->
+        <div class="card">
+            <div class="card-title"><span class="icon" style="background:#f0f9ff">⚙️</span> 全局参数</div>
+            <div class="settings-row">
+                <div class="settings-item">
+                    <label>汇率 (USD→CNY)</label>
+                    <input type="number" id="exchangeRate" value="6.5" step="0.01" min="0" onchange="onGlobalParamChange()">
+                </div>
+                <div class="settings-item">
+                    <label>前台溢价率 (%)</label>
+                    <input type="number" id="premiumRate" value="25" step="1" min="0" onchange="onGlobalParamChange()">
+                </div>
+                <div class="settings-item">
+                    <label>运补金额 ($/单)</label>
+                    <input type="number" id="subsidyAmount" value="2.99" step="0.01" min="0" onchange="onGlobalParamChange()">
+                </div>
+                <div class="settings-item">
+                    <label>运补门槛 ($/单)</label>
+                    <input type="number" id="subsidyThreshold" value="30" step="1" min="0" onchange="onGlobalParamChange()">
+                </div>
+                <div class="settings-item">
+                    <label>售后率 (%)</label>
+                    <input type="number" id="afterSaleRate" value="0" step="0.1" min="0" max="100" onchange="onGlobalParamChange()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Calculation -->
+        <div class="card">
+            <div class="card-title"><span class="icon" style="background:#fef9c3">📊</span> 批量利润计算</div>
+            <div class="batch-select-area">
+                <button class="btn btn-blue btn-sm" onclick="openProductPicker()">+ 从产品库添加</button>
+                <button class="btn btn-gray btn-sm" onclick="clearBatch()">清空列表</button>
+                <div class="settings-item" style="margin-left:auto">
+                    <label>全局核价 ($)</label>
+                    <input type="number" id="bPrice" step="0.01" min="0" placeholder="留空=逐行" style="width:100px" oninput="recalcBatch()">
+                </div>
+                <div class="settings-item">
+                    <label>全局折扣 (%)</label>
+                    <input type="number" id="bDiscount" value="100" step="1" min="1" max="100" style="width:80px" oninput="recalcBatch()">
+                </div>
+            </div>
+            <div class="check-row" style="margin-bottom:8px">
+                <input type="checkbox" id="bHasSub" checked onchange="recalcBatch()">
+                <label for="bHasSub">有运费补贴</label>
+            </div>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+                <div class="batch-mode-toggle" id="batchLmToggle">
+                    <button class="active" data-mode="auto" onclick="setBatchLmMode('auto')">🚚 自动匹配物流规则</button>
+                    <button data-mode="stored" onclick="setBatchLmMode('stored')">💲 读取产品录入值</button>
+                </div>
+                <span class="batch-prov-global" id="batchProvGlobal">
+                    物流商: <select id="batchProvSel" onchange="setBatchProv(+this.value)"></select>
+                </span>
+            </div>
+            <div id="batchSelected" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+            <div class="table-wrap">
+                <table class="data-table" id="batchTable">
+                    <thead><tr>
+                        <th style="min-width:150px">产品</th>
+                        <th>操作人</th>
+                        <th>工厂</th>
+                        <th>模式</th>
+                        <th>成本¥</th>
+                        <th>代加工¥</th>
+                        <th>克重g</th>
+                        <th>到仓¥/件</th>
+                        <th>核价$</th>
+                        <th>折扣%</th>
+                        <th>件数</th>
+                        <th>成交价$</th>
+                        <th>销售额$</th>
+                        <th>运补$</th>
+                        <th>物流商</th>
+                        <th>尾程$/件</th>
+                        <th>总收入¥</th>
+                        <th>总成本¥</th>
+                        <th>售前利润¥</th>
+                        <th>售后利润¥</th>
+                        <th>利润率</th>
+                        <th>操作</th>
+                    </tr></thead>
+                    <tbody id="batchBody"></tbody>
+                </table>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-green btn-sm" onclick="exportBatch()">📋 复制表格</button>
+                <button class="btn btn-green btn-sm" onclick="exportBatchCSV()">💾 导出CSV(含公式)</button>
+            </div>
+            <div id="batchSummary" style="margin-top:8px;font-size:12px;color:var(--gray)"></div>
+        </div>
+
+        <!-- Reverse Calculation -->
+        <div class="card">
+            <div class="card-title"><span class="icon" style="background:#fef3c7">🔄</span> 批量利润反推</div>
+            <div class="reverse-row">
+                <div class="input-group">
+                    <label>目标利润率 (%)</label>
+                    <input type="number" id="rMargin" step="0.1" min="0" placeholder="如: 15">
+                </div>
+                <div class="input-group">
+                    <label>目标利润额 (¥)</label>
+                    <input type="number" id="rProfit" step="0.01" min="0" placeholder="如: 50">
+                </div>
+                <div class="input-group" style="align-self:end">
+                    <button class="btn btn-blue" onclick="batchReverseCalc()">开始反推</button>
+                </div>
+            </div>
+            <div id="reverseResult"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ============ SHARED STATE ============
+        const LOCAL_KEY = 'profit_calc_data_v2';
+        const SYNC_CFG_KEY = 'profit_calc_sync_cfg';
+        let S = { providers: [], intlRates: [], library: [], batchItems: [], calcRecords: [], batchLmMode: 'auto', batchProvIdx: 0 };
+        let syncCfg = { apiUrl: '', apiKey: '', autoSync: false, interval: 60000 };
+        let syncVersion = 0, lastSyncTs = 0, syncTimer = null, isSyncing = false;
+
+        // ============ UTIL ============
+        const $ = id => document.getElementById(id);
+        const V = id => parseFloat($(id)?.value) || 0;
+        const fmt = (n, d=2) => (isNaN(n) ? 0 : n).toFixed(d);
+        const escH = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        
+        function toast(msg) { const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2000); }
+
+        // ============ STATE MANAGEMENT ============
+        function collectState() {
+            return {
+                providers: S.providers, intlRates: S.intlRates, library: S.library,
+                batchItems: S.batchItems, calcRecords: S.calcRecords,
+                batchLmMode: S.batchLmMode || 'auto',
+                batchProvIdx: S.batchProvIdx || 0,
+                globalParams: { rate:V('exchangeRate'), prem:V('premiumRate'), sub:V('subsidyAmount'), subThr:V('subsidyThreshold'), asr:V('afterSaleRate') }
+            };
+        }
+        function applyState(d) {
+            if(!d) return;
+            if(d.providers) S.providers=d.providers;
+            if(d.intlRates) S.intlRates=d.intlRates;
+            if(d.library) S.library=d.library;
+            if(d.batchItems) S.batchItems=d.batchItems;
+            if(d.calcRecords) S.calcRecords=d.calcRecords;
+            if(d.batchLmMode) S.batchLmMode=d.batchLmMode;
+            if(d.batchProvIdx!=null) S.batchProvIdx=d.batchProvIdx;
+            if(d.globalParams){ const g=d.globalParams; if(g.rate!=null)$('exchangeRate').value=g.rate; if(g.prem!=null)$('premiumRate').value=g.prem; if(g.sub!=null)$('subsidyAmount').value=g.sub; if(g.subThr!=null)$('subsidyThreshold').value=g.subThr; if(g.asr!=null)$('afterSaleRate').value=g.asr; }
+        }
+        function saveState() {
+            try { localStorage.setItem(LOCAL_KEY, JSON.stringify(collectState())); } catch(e){}
+            if(syncCfg.autoSync && syncCfg.apiUrl && syncCfg.apiKey) pushToCloud();
+        }
+
+        // ============ SYNC ============
+        function loadSyncCfg() { try { const s=localStorage.getItem(SYNC_CFG_KEY); if(s) syncCfg=JSON.parse(s); } catch(e){} }
+        function saveSyncCfg() { try { localStorage.setItem(SYNC_CFG_KEY, JSON.stringify(syncCfg)); } catch(e){} }
+        function updateSyncUI(status, text) {
+            const dot=$('syncDot'), txt=$('syncText');
+            dot.className='sync-dot '+(status||'local');
+            txt.textContent=text||(status==='synced'?'已同步':status==='syncing'?'同步中...':status==='error'?'同步失败':'本地模式');
+        }
+        async function syncGet() { if(!syncCfg.apiUrl||!syncCfg.apiKey) return null; try { const r=await fetch(`${syncCfg.apiUrl}/data`,{headers:{'Authorization':`Bearer ${syncCfg.apiKey}`}}); return r.ok?await r.json():null; } catch(e){ return null; } }
+        async function syncSet(data) { if(!syncCfg.apiUrl||!syncCfg.apiKey) return false; try { const r=await fetch(`${syncCfg.apiUrl}/data`,{method:'POST',headers:{'Authorization':`Bearer ${syncCfg.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({data,version:syncVersion})}); return r.ok; } catch(e){ return false; } }
+        async function syncCheck() { if(!syncCfg.apiUrl||!syncCfg.apiKey) return null; try { const r=await fetch(`${syncCfg.apiUrl}/check?version=${syncVersion}`,{headers:{'Authorization':`Bearer ${syncCfg.apiKey}`}}); return r.ok?await r.json():null; } catch(e){ return null; } }
+        async function pushToCloud() {
+            if(isSyncing) return;
+            isSyncing=true; updateSyncUI('syncing');
+            try { const ok=await syncSet(collectState()); updateSyncUI(ok?'synced':'error'); if(ok){lastSyncTs=Date.now();} }
+            catch(e){ updateSyncUI('error'); }
+            finally { isSyncing=false; }
+        }
+        async function doSync() {
+            if(isSyncing) return;
+            isSyncing=true; updateSyncUI('syncing');
+            try {
+                const ck=await syncCheck();
+                if(ck&&ck.changed&&ck.data){ applyState(ck.data); syncVersion=ck.version||0; try{localStorage.setItem(LOCAL_KEY,JSON.stringify(collectState()));}catch(e){} renderBatch(); updateSyncUI('synced'); lastSyncTs=Date.now(); }
+                else if(ck){ updateSyncUI('synced'); lastSyncTs=Date.now(); }
+                else { updateSyncUI('error'); }
+            } catch(e){ updateSyncUI('error'); }
+            finally { isSyncing=false; }
+        }
+        function toggleSyncSettings() {
+            const cfg = prompt('同步设置格式: API地址|API密钥|自动同步(true/false)|间隔(秒)\n当前: ' + syncCfg.apiUrl + '|' + syncCfg.apiKey + '|' + syncCfg.autoSync + '|' + (syncCfg.interval/1000));
+            if(!cfg) return;
+            const parts = cfg.split('|');
+            if(parts.length >= 2) {
+                syncCfg.apiUrl = parts[0].trim();
+                syncCfg.apiKey = parts[1].trim();
+                if(parts[2]) syncCfg.autoSync = parts[2].trim() === 'true';
+                if(parts[3]) syncCfg.interval = parseInt(parts[3]) * 1000;
+                saveSyncCfg();
+                toast('同步配置已保存');
+                if(syncCfg.autoSync && syncCfg.apiUrl && syncCfg.apiKey) {
+                    if(syncTimer) clearInterval(syncTimer);
+                    syncTimer = setInterval(doSync, syncCfg.interval);
+                }
+            }
+        }
+
+        // ============ CALCULATION ============
+        function gp() { return { rate:V('exchangeRate')||6.5, prem:(V('premiumRate')||25)/100, sub:V('subsidyAmount')||2.99, subThr:V('subsidyThreshold')||30, asr:(V('afterSaleRate')||0)/100 }; }
+        
+        function getLastMile(pi, w) {
+            if(!S.providers[pi] || !S.providers[pi].rules) return 0;
+            const rule = S.providers[pi].rules.find(r => w >= r.min && w < r.max);
+            return rule ? rule.price : 0;
+        }
+        function getIntlRate(w) {
+            const rule = S.intlRates.find(r => w >= r.min && w < r.max);
+            return rule ? rule.price : 0;
+        }
+        
+        function calcProfit(p) {
+            const g = gp();
+            const sa = p.price * (p.disc/100);
+            const saCNY = sa * g.rate;
+            const subUSD = (p.hasSub && sa >= g.subThr) ? g.sub : 0;
+            let lm = p.lastMile || 0;
+            let lmCNY = lm * g.rate;
+            let wc = 0;
+            if(p.mode === 'overseas') {
+                const shipRmb = (p.shipUSD || 0) * g.rate;
+                wc = p.cost + shipRmb + (p.procFee || 0);
+            } else {
+                const wkg = (p.weight||0)/1000;
+                const ir = getIntlRate(p.weight||0);
+                const fm = (p.weight||0) > 0 ? (50)/((20)/(p.weight||0)*1000) : 0;
+                wc = p.cost + (p.imgCost||0)/Math.max(1,p.qty) + (p.packFee||0) + fm + (p.delivFee||0)*g.rate + (p.preList||0)*g.rate + (p.procFee||0);
+            }
+            const revCNY = ((sa - lm) * p.qty + subUSD) * g.rate;
+            const tcCNY = wc * p.qty;
+            const pre = revCNY - tcCNY;
+            const asLoss = lm * g.rate + wc;
+            const after = pre - g.asr * asLoss * p.qty;
+            const margin = revCNY > 0 ? (pre / revCNY * 100) : 0;
+            return { tp: sa, sa, subUSD, lm, revenueCNY: revCNY, totalCostCNY: tcCNY, preProfit: pre, afterProfit: after, margin, wc };
+        }
+
+        function onGlobalParamChange() { recalcBatch(); saveState(); }
+
+        // ============ BATCH ============
+        function openProductPicker() {
+            if(!S.library.length){toast('请先在"单件计算"页面的产品库中添加产品');return;}
+            const items=S.library.map((p,i)=>({p,i}));
+            const modal=document.createElement('div');
+            modal.className='modal-overlay show';
+            function renderList(filter){
+                const filtered=filter?items.filter(x=>x.p.name.toLowerCase().includes(filter)||((x.p.factory||'').toLowerCase().includes(filter))||((x.p.operator||'').toLowerCase().includes(filter))||((x.p.sku||'').toLowerCase().includes(filter))):items;
+                modal.querySelector('.pick-list-area').innerHTML=filtered.length?filtered.map(({p,i})=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 0;font-size:12px;cursor:pointer"><input type="checkbox" class="pick-chk" value="${i}"> ${p.sku?'['+escH(p.sku)+'] ':''}${escH(p.name)} <span style="color:var(--gray);font-size:10px">${p.operator?'👤'+escH(p.operator)+' · ':''}${p.factory?'🏭'+escH(p.factory)+' · ':''}${p.mode==='overseas'?'海外':'国内'}, ¥${fmt(p.cost)}</span></label>`).join(''):'<p style="color:var(--gray);font-size:12px;padding:20px 0;text-align:center">未找到匹配的产品</p>';
+            }
+            modal.innerHTML=`<div class="modal"><h3>选择产品添加到批量计算</h3>
+                <input type="text" class="product-search" placeholder="🔍 搜索产品名称/SKU/工厂/操作人...">
+                <div class="pick-list-area" style="max-height:300px;overflow-y:auto;padding:4px 0"></div>
+                <div class="btn-row"><button class="btn btn-gray" onclick="this.closest('.modal-overlay').remove()">取消</button><button class="btn btn-blue" onclick="confirmPick(this)">确认添加</button></div></div>`;
+            document.body.appendChild(modal);
+            renderList('');
+            modal.querySelector('.product-search').addEventListener('input',function(){renderList(this.value.toLowerCase());});
+            modal.querySelector('.product-search').focus();
+        }
+        function confirmPick(btn){
+            const chks=btn.closest('.modal').querySelectorAll('.pick-chk:checked');
+            chks.forEach(c=>{const idx=parseInt(c.value);if(!S.batchItems.find(b=>b.libIdx===idx))S.batchItems.push({...S.library[idx],libIdx:idx,qty:1,price:0,disc:0});});
+            btn.closest('.modal-overlay').remove();
+            renderBatch();saveState();toast(`已添加 ${chks.length} 个产品`);
+        }
+        function renderBatch(){
+            $('batchSelected').innerHTML = S.batchItems.map((p,i)=>`<span class="batch-product-tag"><span class="name">${escH(p.name)}</span> <span class="remove" onclick="removeBatchItem(${i})">×</span></span>`).join('');
+            recalcBatch();
+        }
+        function removeBatchItem(i){S.batchItems.splice(i,1);renderBatch();saveState();}
+        function clearBatch(){S.batchItems=[];renderBatch();$('batchSummary').textContent='';saveState();}
+
+        function setBatchLmMode(m){
+            S.batchLmMode=m;
+            document.querySelectorAll('.batch-mode-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+            const gp=$('batchProvGlobal'); if(gp) gp.style.display = m==='auto'?'inline-flex':'none';
+            recalcBatch();saveState();
+        }
+        function setBatchProv(idx){
+            S.batchProvIdx=idx;
+            recalcBatch();saveState();
+        }
+
+        function recalcBatch(){
+            const g=gp(), gPrice=V('bPrice'), gDisc=V('bDiscount')||100, hasSub=$('bHasSub').checked;
+            const lmMode=S.batchLmMode||'auto';
+            const globalPi=S.batchProvIdx||0;
+            let tPre=0,tAfter=0,pCnt=0,lCnt=0;
+            $('batchBody').innerHTML = S.batchItems.map((p,i)=>{
+                const price=p.price||gPrice, disc=p.disc||gDisc;
+                const qty=p.qty||1;
+                if(!price||!p.cost) return `<tr><td style="text-align:left;padding-left:6px;font-weight:500">${escH(p.name)}</td><td colspan="19" style="color:#94a3b8">请填写核价</td></tr>`;
+                const pi = (lmMode==='auto') ? (p.lmProvIdx!=null ? p.lmProvIdx : globalPi) : 0;
+                let params={mode:p.mode,price,disc,cost:p.cost,qty,hasSub,procFee:p.procFee||0};
+                let lmDetail='',provName='';
+                if(p.mode==='overseas'){
+                    params.shipUSD=p.shipUSD||0;
+                    if(lmMode==='stored'){
+                        params.lastMile=p.lastMileCost||0;
+                        lmDetail='录入值';provName='录入值';
+                    } else {
+                        params.lastMile=p.weight>0?(getLastMile(pi,p.weight)||0):0;
+                        if(params.lastMile>0){ const pr=S.providers[pi];provName=pr.name||''; } else { provName=S.providers[pi]?S.providers[pi].name:'?'; }
+                    }
+                } else {
+                    params.weight=p.weight||0;params.imgCost=p.imgCost||0;
+                    params.packFee=0;params.fmBase=50;params.fmWeight=20;params.delivFee=0;params.preList=0;
+                    if(lmMode==='stored'){
+                        params.lastMile=p.lastMileCost||0;provName='录入值';
+                    } else {
+                        params.lastMile=getLastMile(pi,params.weight)||0;
+                        if(params.lastMile>0){ const pr=S.providers[pi];provName=pr.name||''; } else { provName=S.providers[pi]?S.providers[pi].name:'?'; }
+                    }
+                }
+                const r=calcProfit(params);
+                const provSel = lmMode==='auto' ? `<select class="batch-prov-sel" onchange="S.batchItems[${i}].lmProvIdx=+this.value;recalcBatch();saveState()">${S.providers.map((pr,idx)=>`<option value="${idx}"${idx===pi?' selected':''}>${pr.name}</option>`).join('')}</select>` : `<span style="font-size:10px;color:var(--gray)">${provName}</span>`;
+                tPre+=r.preProfit;tAfter+=r.afterProfit;
+                if(r.preProfit>=0)pCnt++;else lCnt++;
+                return `<tr>
+                    <td style="font-weight:500;text-align:left;padding-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escH(p.name)}">${escH(p.name)}</td>
+                    <td style="font-size:10px;color:var(--gray)">${p.operator?escH(p.operator):'-'}</td>
+                    <td style="font-size:10px;color:var(--gray)">${p.factory?escH(p.factory):'-'}</td>
+                    <td><span style="font-size:9px;padding:2px 5px;border-radius:3px;${p.mode==='overseas'?'background:#dbeafe;color:#1d4ed8':'background:#dcfce7;color:#166534'}">${p.mode==='overseas'?'海外':'国内'}</span></td>
+                    <td><input type="number" value="${p.cost}" onchange="S.batchItems[${i}].cost=+this.value;recalcBatch();saveState()" step="0.01"></td>
+                    <td style="font-size:10px">${fmt(p.procFee||0)}</td>
+                    <td style="font-size:10px">${p.mode==='overseas'?'-':fmt(p.weight||0)}</td>
+                    <td style="font-size:10px">${p.mode==='overseas'?fmt((p.shipUSD||0)*g.rate):'-'}</td>
+                    <td><input type="number" value="${price||''}" onchange="S.batchItems[${i}].price=+this.value;recalcBatch();saveState()" step="0.01" placeholder="核价"></td>
+                    <td><input type="number" value="${disc||100}" onchange="S.batchItems[${i}].disc=+this.value;recalcBatch();saveState()" step="1" min="1" max="100"></td>
+                    <td><input type="number" value="${qty}" onchange="S.batchItems[${i}].qty=+this.value;recalcBatch();saveState()" min="1" style="width:45px"></td>
+                    <td style="font-size:10px;font-weight:600;color:${r.tp>0?'var(--blue)':'var(--gray)'}">${fmt(r.tp)}</td>
+                    <td style="font-size:10px">${fmt(r.sa*qty)}</td>
+                    <td style="font-size:10px">${r.subUSD>0?fmt(r.subUSD):'-'}</td>
+                    <td>${provSel}</td>
+                    <td style="font-size:10px" title="${lmDetail}">${fmt(r.lm)}</td>
+                    <td style="font-size:10px;font-weight:600">${fmt(r.revenueCNY)}</td>
+                    <td style="font-size:10px;font-weight:600">${fmt(r.totalCostCNY)}</td>
+                    <td style="font-size:10px;font-weight:700;color:${r.preProfit>=0?'var(--green)':'var(--red)'}">${fmt(r.preProfit)}</td>
+                    <td style="font-size:10px;font-weight:700;color:${r.afterProfit>=0?'var(--green)':'var(--red)'}">${fmt(r.afterProfit)}</td>
+                    <td style="font-size:10px;font-weight:600;color:${r.margin>=0?'var(--green)':'var(--red)'}">${fmt(r.margin,1)}%</td>
+                    <td><button class="btn btn-gray btn-sm" style="padding:2px 6px;font-size:10px" onclick="removeBatchItem(${i})">删除</button></td>
+                </tr>`;
+            }).join('');
+            $('batchSummary').innerHTML = S.batchItems.length ? `共 ${S.batchItems.length} 个产品 | 盈利: <b style="color:var(--green)">${pCnt}</b> | 亏损: <b style="color:var(--red)">${lCnt}</b> | 总售前利润: <b style="color:${tPre>=0?'var(--green)':'var(--red)'}">¥${fmt(tPre)}</b> | 总售后利润: <b style="color:${tAfter>=0?'var(--green)':'var(--red)'}">¥${fmt(tAfter)}</b>` : '';
+        }
+
+        function exportBatch(){
+            if(!S.batchItems.length){toast('没有数据');return;}
+            let t='产品\t操作人\t工厂\t模式\t成本¥\t代加工¥\t克重g\t到仓¥/件\t核价$\t折扣%\t件数\t成交价$\t销售额$\t运补$\t物流商\t尾程$/件\t总收入¥\t总成本¥\t售前利润¥\t售后利润¥\t利润率\n';
+            const g=gp(), gPrice=V('bPrice'), gDisc=V('bDiscount')||100, hasSub=$('bHasSub').checked;
+            S.batchItems.forEach(p=>{
+                const price=p.price||gPrice, disc=p.disc||gDisc, qty=p.qty||1;
+                if(!price||!p.cost) return;
+                const params={mode:p.mode,price,disc,cost:p.cost,qty,hasSub,procFee:p.procFee||0};
+                if(p.mode==='overseas'){params.shipUSD=p.shipUSD||0;params.lastMile=S.batchLmMode==='stored'?(p.lastMileCost||0):(p.weight>0?getLastMile(p.lmProvIdx||S.batchProvIdx||0,p.weight):0);}
+                else{params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=0;params.fmBase=50;params.fmWeight=20;params.delivFee=0;params.preList=0;params.lastMile=S.batchLmMode==='stored'?(p.lastMileCost||0):getLastMile(p.lmProvIdx||S.batchProvIdx||0,params.weight);}
+                const r=calcProfit(params);
+                t+=`${p.name}\t${p.operator||'-'}\t${p.factory||'-'}\t${p.mode==='overseas'?'海外':'国内'}\t${fmt(p.cost)}\t${fmt(p.procFee||0)}\t${p.mode==='overseas'?'-':fmt(p.weight||0)}\t${p.mode==='overseas'?fmt((p.shipUSD||0)*g.rate):'-'}\t${fmt(price)}\t${disc}\t${qty}\t${fmt(r.tp)}\t${fmt(r.sa*qty)}\t${r.subUSD>0?fmt(r.subUSD):'-'}\t${S.providers[p.lmProvIdx||S.batchProvIdx||0]?.name||'-'}\t${fmt(r.lm)}\t${fmt(r.revenueCNY)}\t${fmt(r.totalCostCNY)}\t${fmt(r.preProfit)}\t${fmt(r.afterProfit)}\t${fmt(r.margin,1)}%\n`;
+            });
+            const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('已复制到剪贴板');
+        }
+        function exportBatchCSV(){
+            if(!S.batchItems.length){toast('没有数据');return;}
+            let csv='产品,操作人,工厂,模式,成本¥,代加工¥,克重g,到仓¥/件,核价$,折扣%,件数,成交价$,销售额$,运补$,物流商,尾程$/件,总收入¥,总成本¥,售前利润¥,售后利润¥,利润率\n';
+            const g=gp(), gPrice=V('bPrice'), gDisc=V('bDiscount')||100, hasSub=$('bHasSub').checked;
+            S.batchItems.forEach(p=>{
+                const price=p.price||gPrice, disc=p.disc||gDisc, qty=p.qty||1;
+                if(!price||!p.cost) return;
+                const params={mode:p.mode,price,disc,cost:p.cost,qty,hasSub,procFee:p.procFee||0};
+                if(p.mode==='overseas'){params.shipUSD=p.shipUSD||0;params.lastMile=S.batchLmMode==='stored'?(p.lastMileCost||0):(p.weight>0?getLastMile(p.lmProvIdx||S.batchProvIdx||0,p.weight):0);}
+                else{params.weight=p.weight||0;params.imgCost=p.imgCost||0;params.packFee=0;params.fmBase=50;params.fmWeight=20;params.delivFee=0;params.preList=0;params.lastMile=S.batchLmMode==='stored'?(p.lastMileCost||0):getLastMile(p.lmProvIdx||S.batchProvIdx||0,params.weight);}
+                const r=calcProfit(params);
+                csv+=`"${p.name}","${p.operator||'-'}","${p.factory||'-'}",${p.mode==='overseas'?'海外':'国内'},${fmt(p.cost)},${fmt(p.procFee||0)},${p.mode==='overseas'?'-':fmt(p.weight||0)},${p.mode==='overseas'?fmt((p.shipUSD||0)*g.rate):'-'},${fmt(price)},${disc},${qty},${fmt(r.tp)},${fmt(r.sa*qty)},${r.subUSD>0?fmt(r.subUSD):'-'},${S.providers[p.lmProvIdx||S.batchProvIdx||0]?.name||'-'},${fmt(r.lm)},${fmt(r.revenueCNY)},${fmt(r.totalCostCNY)},${fmt(r.preProfit)},${fmt(r.afterProfit)},${fmt(r.margin,1)}%\n`;
+            });
+            const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+            const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`批量利润计算_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('已导出');
+        }
+
+        // ============ REVERSE CALC ============
+        function batchReverseCalc() {
+            const margin = V('rMargin');
+            const profit = V('rProfit');
+            if(!margin && !profit) { toast('请至少填写目标利润率或目标利润额'); return; }
+            if(!S.batchItems.length) { toast('请先添加产品'); return; }
+
+            const g = gp();
+            const results = [];
+            S.batchItems.forEach((p, i) => {
+                if(!p.cost) return;
+                const qty = p.qty || 1;
+                const hasSub = $('bHasSub').checked;
+                
+                // Determine costs
+                let baseCost = 0;
+                if(p.mode === 'overseas') {
+                    const shipRmb = (p.shipUSD||0) * g.rate;
+                    baseCost = p.cost + shipRmb + (p.procFee||0);
+                } else {
+                    baseCost = p.cost + (p.procFee||0);
+                }
+                
+                const lm = S.batchLmMode==='stored' ? (p.lastMileCost||0) : getLastMile(p.lmProvIdx||S.batchProvIdx||0, p.weight||0);
+                const lmCNY = lm * g.rate;
+                
+                // Calculate required revenue
+                let targetRev = 0;
+                if(margin > 0) {
+                    // profit margin = (revenue - cost) / revenue
+                    // revenue = cost / (1 - margin/100)
+                    targetRev = (baseCost * qty) / (1 - margin/100);
+                } else if(profit > 0) {
+                    // profit = revenue - cost
+                    targetRev = baseCost * qty + profit;
+                }
+                
+                // Calculate required sale price
+                // revenue = ((price * disc/100 - lm) * qty + subUSD) * rate
+                const disc = (p.disc || V('bDiscount') || 100) / 100;
+                const subUSD = (hasSub && (targetRev / g.rate / qty) >= g.subThr) ? g.sub : 0;
+                const requiredPrice = ((targetRev / g.rate - subUSD) / qty + lm) / disc;
+                
+                const currentPrice = p.price || V('bPrice');
+                const diff = requiredPrice - currentPrice;
+                
+                results.push({
+                    name: p.name,
+                    currentPrice,
+                    requiredPrice,
+                    diff,
+                    margin: margin || (profit > 0 ? (profit / (baseCost * qty + profit) * 100) : 0)
+                });
+            });
+
+            let html = '<div class="reverse-result">';
+            html += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+            html += '<tr style="border-bottom:1px solid #d1fae5"><th style="text-align:left;padding:6px">产品</th><th>当前核价$</th><th>目标核价$</th><th>差额$</th><th>利润率</th></tr>';
+            results.forEach(r => {
+                const color = r.diff > 0 ? 'var(--red)' : r.diff < 0 ? 'var(--green)' : 'var(--text)';
+                html += `<tr style="border-bottom:1px solid #ecfdf5">
+                    <td style="padding:6px;text-align:left;font-weight:500">${escH(r.name)}</td>
+                    <td style="text-align:center">${fmt(r.currentPrice)}</td>
+                    <td style="text-align:center;font-weight:700;color:var(--blue)">${fmt(r.requiredPrice)}</td>
+                    <td style="text-align:center;font-weight:600;color:${color}">${r.diff>0?'+':''}${fmt(r.diff)}</td>
+                    <td style="text-align:center;color:var(--green)">${fmt(r.margin,1)}%</td>
+                </tr>`;
+            });
+            html += '</table></div>';
+            $('reverseResult').innerHTML = html;
+        }
+
+        // ============ INIT ============
+        function updateBatchLmToggle() {
+            const m = S.batchLmMode || 'auto';
+            document.querySelectorAll('.batch-mode-toggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+            const gp = $('batchProvGlobal');
+            if(gp) gp.style.display = m === 'auto' ? 'inline-flex' : 'none';
+            const bps = $('batchProvSel');
+            if(bps) bps.value = S.batchProvIdx || 0;
+        }
+        function renderProviders() {
+            const sel = $('batchProvSel');
+            sel.innerHTML = S.providers.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+        }
+        function renderBatch() {
+            $('batchSelected').innerHTML = S.batchItems.map((p,i)=>`<span class="batch-product-tag"><span class="name">${escH(p.name)}</span> <span class="remove" onclick="removeBatchItem(${i})">×</span></span>`).join('');
+            recalcBatch();
+        }
+
+        async function loadData() {
+            loadSyncCfg();
+            if(syncCfg.apiUrl && syncCfg.apiKey) {
+                updateSyncUI('syncing', '加载中...');
+                const cd = await syncGet();
+                if(cd && cd.data) {
+                    applyState(cd.data);
+                    syncVersion = cd.version || 0;
+                    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(collectState())); } catch(e) {}
+                    updateSyncUI('synced');
+                } else {
+                    updateSyncUI('error');
+                }
+            } else {
+                try {
+                    const s = localStorage.getItem(LOCAL_KEY);
+                    if(s) applyState(JSON.parse(s));
+                } catch(e) {}
+                updateSyncUI('local');
+            }
+            renderProviders();
+            updateBatchLmToggle();
+            renderBatch();
+        }
+
+        // Start
+        loadData();
+    </script>
+</body>
+</html>
