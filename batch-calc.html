@@ -131,6 +131,7 @@
         <div class="sync-bar" id="syncBar">
             <span class="sync-dot local" id="syncDot"></span>
             <span id="syncText">本地模式</span>
+            <button class="btn btn-green btn-sm" id="syncToggleBtn" style="padding:3px 10px;font-size:11px" onclick="toggleSyncMode()">☁️ 开启同步</button>
             <button class="btn btn-gray btn-sm" style="padding:3px 10px;font-size:11px" onclick="toggleSyncPanel()">⚙️ 同步设置</button>
             <button class="btn btn-blue btn-sm" style="padding:3px 10px;font-size:11px" onclick="doSync()">🔄 手动同步</button>
         </div>
@@ -447,12 +448,56 @@
         saveSyncCfg();
         toast('同步配置已保存');
         syncLog('配置已保存: '+(syncCfg.apiUrl||'未设置'));
+        updateSyncToggleBtn();
         if(syncCfg.autoSync&&syncCfg.apiUrl&&syncCfg.apiKey){ startAutoSync(); updateSyncUI('synced','自动同步已开启'); }
-        else { stopAutoSync(); updateSyncUI(syncCfg.apiUrl?'local':'local'); }
+        else { stopAutoSync(); updateSyncUI('local'); }
     }
     function startAutoSync() { if(syncTimer)clearInterval(syncTimer); if(syncCfg.autoSync&&syncCfg.apiUrl&&syncCfg.apiKey) syncTimer=setInterval(doSync,syncCfg.interval); }
     function stopAutoSync() { if(syncTimer){clearInterval(syncTimer);syncTimer=null;} }
     function toggleSyncPanel() { const p=$('syncPanel'); p.style.display=p.style.display==='none'?'':'none'; }
+
+    function toggleSyncMode() {
+        const isSyncOn = syncCfg.apiUrl && syncCfg.apiKey && syncCfg.autoSync;
+        if(isSyncOn) {
+            // 关闭同步，切换到本地模式
+            syncCfg.autoSync = false;
+            saveSyncCfg();
+            stopAutoSync();
+            updateSyncUI('local');
+            updateSyncToggleBtn();
+            syncLog('已切换到本地模式');
+            toast('已切换到本地模式');
+        } else {
+            // 开启同步
+            if(!syncCfg.apiUrl || !syncCfg.apiKey) {
+                // 没配置过，先打开设置面板让用户填写
+                toggleSyncPanel();
+                toast('请先配置API地址和密钥');
+                return;
+            }
+            syncCfg.autoSync = true;
+            saveSyncCfg();
+            startAutoSync();
+            doSync();
+            updateSyncToggleBtn();
+            syncLog('已开启云同步');
+            toast('云同步已开启');
+        }
+    }
+    function updateSyncToggleBtn() {
+        const btn = $('syncToggleBtn');
+        if(!btn) return;
+        const isSyncOn = syncCfg.apiUrl && syncCfg.apiKey && syncCfg.autoSync;
+        if(isSyncOn) {
+            btn.textContent = '📴 切换本地';
+            btn.className = 'btn btn-red btn-sm';
+            btn.style.cssText = 'padding:3px 10px;font-size:11px';
+        } else {
+            btn.textContent = '☁️ 开启同步';
+            btn.className = 'btn btn-green btn-sm';
+            btn.style.cssText = 'padding:3px 10px;font-size:11px';
+        }
+    }
 
     function exportAllJSON() { const blob=new Blob([JSON.stringify(collectState(),null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`利润计算器数据_${new Date().toISOString().slice(0,10)}.json`;a.click();toast('已导出'); }
     function importAllJSON(e) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{try{const d=JSON.parse(ev.target.result);applyState(d);saveState();renderAll();toast('数据已导入');syncLog('从JSON文件导入数据');}catch(err){toast('文件格式错误');}}; r.readAsText(f); e.target.value=''; }
@@ -858,9 +903,12 @@
             const currentPrice = p.price || V('bPrice');
             const diff = tp - (currentPrice||0);
 
+            // 工厂：优先取 batchItem 自身的，其次从产品库回查
+            const factory = p.factory || (p.libIdx != null && S.library[p.libIdx] ? S.library[p.libIdx].factory : '') || '';
+
             results.push({
                 name: p.name,
-                factory: p.factory || '',
+                factory: factory,
                 currentPrice: currentPrice || 0,
                 requiredPrice: tp,
                 diff,
@@ -922,6 +970,7 @@
         $('syncApiKey').value = syncCfg.apiKey || '';
         $('syncAuto').checked = syncCfg.autoSync;
         $('syncInterval').value = (syncCfg.interval || 5000) / 1000;
+        updateSyncToggleBtn();
         
         if(syncCfg.apiUrl && syncCfg.apiKey) {
             updateSyncUI('syncing', '加载中...');
