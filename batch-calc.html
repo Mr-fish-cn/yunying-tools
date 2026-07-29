@@ -274,6 +274,11 @@
         <div class="card">
             <div class="card-title"><span class="icon" style="background:#fef3c7">🔄</span> 批量利润反推成交价</div>
             <p class="hint-text" style="margin-bottom:10px">输入目标利润率或目标利润额，反推每个产品需要的最低核价</p>
+            <div style="margin-bottom:10px">
+                <label style="margin-right:12px;font-size:13px">利润类型：</label>
+                <label style="font-size:13px;margin-right:4px"><input type="radio" name="rType" value="pre" checked onchange="updateReverseMode()"> 售前</label>
+                <label style="font-size:13px"><input type="radio" name="rType" value="after" onchange="updateReverseMode()"> 售后</label>
+            </div>
             <div class="reverse-row">
                 <div class="input-group">
                     <label>目标利润率 (%)</label>
@@ -586,9 +591,15 @@
             let params = { mode:p.mode, price, disc, cost:p.cost, qty, hasSub:itemHasSub, procFee:p.procFee||0 };
             let provName='', lmSrc='';
             
+            // 手动输入的尾程优先，否则按模式取
+            const manualLM = p.lastMileCost > 0 ? p.lastMileCost : 0;
+
             if(p.mode==='overseas') {
                 params.shipUSD = p.shipUSD||0;
-                if(lmMode==='stored') {
+                if(manualLM > 0) {
+                    params.lastMile = manualLM;
+                    lmSrc='手动录入'; provName='手动';
+                } else if(lmMode==='stored') {
                     params.lastMile = p.lastMileCost||0;
                     lmSrc='录入值'; provName='录入值';
                 } else {
@@ -604,7 +615,10 @@
                 params.fmWeight = 20;
                 params.delivFee = 0;
                 params.preList = 0;
-                if(lmMode==='stored') {
+                if(manualLM > 0) {
+                    params.lastMile = manualLM;
+                    lmSrc='手动录入'; provName='手动';
+                } else if(lmMode==='stored') {
                     params.lastMile = p.lastMileCost||0;
                     lmSrc='录入值'; provName='录入值';
                 } else {
@@ -638,7 +652,7 @@
                 <td style="font-size:10px;color:var(--gray)">${fmt(r.sa)}</td>
                 <td>${subDisplay}</td>
                 <td>${provSel}</td>
-                <td style="font-size:10px" title="${lmSrc}">${fmt(r.lm)}</td>
+                <td><input type="number" value="${p.lastMileCost>0?p.lastMileCost:''}" onchange="S.batchItems[${i}].lastMileCost=this.value===''?0:+this.value;recalcBatch();saveState()" step="0.01" placeholder="自动" style="width:60px" title="${lmSrc}"></td>
                 <td style="font-size:10px;font-weight:600">${fmt(r.revenueCNY)}</td>
                 <td style="font-size:10px;font-weight:600">${fmt(r.totalCostCNY)}</td>
                 <td style="font-size:10px;font-weight:700;color:${r.preProfit>=0?'var(--green)':'var(--red)'}">${fmt(r.preProfit)}</td>
@@ -661,14 +675,18 @@
         let params = { mode:p.mode, price, disc, cost:p.cost, qty, hasSub: p.hasSub!==undefined?p.hasSub:hasSub, procFee:p.procFee||0 };
         let provName='', lmSrc='';
         
+        const manualLM = p.lastMileCost > 0 ? p.lastMileCost : 0;
+
         if(p.mode==='overseas') {
             params.shipUSD = p.shipUSD||0;
-            if(lmMode==='stored') { params.lastMile=p.lastMileCost||0; provName='录入值'; lmSrc='录入值'; }
+            if(manualLM > 0) { params.lastMile=manualLM; provName='手动'; lmSrc='手动录入'; }
+            else if(lmMode==='stored') { params.lastMile=p.lastMileCost||0; provName='录入值'; lmSrc='录入值'; }
             else { params.lastMile=p.weight>0?(getLastMile(pi,p.weight)||0):0; lmSrc=params.lastMile>0?`自动(${p.weight}g)`:'未匹配'; provName=S.providers[pi]?.name||'?'; }
         } else {
             params.weight=p.weight||0; params.imgCost=p.imgCost||0;
             params.packFee=0; params.fmBase=50; params.fmWeight=20; params.delivFee=0; params.preList=0;
-            if(lmMode==='stored') { params.lastMile=p.lastMileCost||0; provName='录入值'; lmSrc='录入值'; }
+            if(manualLM > 0) { params.lastMile=manualLM; provName='手动'; lmSrc='手动录入'; }
+            else if(lmMode==='stored') { params.lastMile=p.lastMileCost||0; provName='录入值'; lmSrc='录入值'; }
             else { params.lastMile=getLastMile(pi,params.weight)||0; lmSrc=params.lastMile>0?`自动(${params.weight}g)`:'未匹配'; provName=S.providers[pi]?.name||'?'; }
         }
         return { params, provName, lmSrc };
@@ -713,6 +731,13 @@
     }
 
     // ============ REVERSE CALC (利润反推成交价) ============
+    function getReverseMode() {
+        const radios = document.querySelectorAll('input[name="rType"]');
+        for(const r of radios) if(r.checked) return r.value;
+        return 'pre';
+    }
+    function updateReverseMode() {} // placeholder, radio state read at calc time
+
     function batchReverseCalc() {
         const targetMargin = V('rMargin');   // 目标利润率 %
         const targetProfit = V('rProfit');    // 目标利润额 ¥
@@ -723,13 +748,15 @@
         const hasSub = $('bHasSub').checked;
         const lmMode = S.batchLmMode||'auto';
         const globalPi = S.batchProvIdx||0;
+        const mode = getReverseMode(); // 'pre' or 'after'
         const results = [];
 
         S.batchItems.forEach((p, i) => {
             if(!p.cost) return;
             const qty = p.qty || 1;
-            
-            // 计算到仓成本
+            const disc = p.disc != null ? p.disc : (V('bDiscount') || 100);
+
+            // 计算到仓成本（与 calcProfit 完全一致）
             let wc = 0;
             if(p.mode === 'overseas') {
                 wc = p.cost + (p.shipUSD||0) * g.rate + (p.procFee||0);
@@ -740,73 +767,97 @@
                 const imgPU = (p.imgCost||0)/Math.max(1,qty);
                 wc = p.cost + imgPU + ir*g.rate + 0 + fm + 0 + 0 + (p.procFee||0);
             }
-            
-            // 尾程
-            const lm = lmMode==='stored' ? (p.lastMileCost||0) : (getLastMile(p.lmProvIdx!=null?p.lmProvIdx:globalPi, p.weight||0)||0);
-            
-            // 反推：
-            // revenueCNY = ((tp - lm) * qty + subUSD) * rate
-            // totalCostCNY = wc * qty
-            // preProfit = revenueCNY - totalCostCNY
-            // margin = preProfit / revenueCNY
+
+            // 尾程：手动输入优先，否则按模式取
+            const manualLMRev = p.lastMileCost > 0 ? p.lastMileCost : 0;
+            const lm = manualLMRev > 0 ? manualLMRev : (lmMode==='stored' ? (p.lastMileCost||0) : (getLastMile(p.lmProvIdx!=null?p.lmProvIdx:globalPi, p.weight||0)||0));
+
+            // === 反推公式推导 ===
+            // 正向公式（与 calcProfit 一致）：
+            //   tp = price * disc / 100  (成交价)
+            //   sa = tp * (1 + prem)     (前台售价)
+            //   revenueCNY = ((tp - lm) * qty + subUSD) * rate
+            //   totalCostCNY = wc * qty
+            //   preProfit = revenueCNY - totalCostCNY
+            //   asLossPU = lm * rate + wc
+            //   afterProfit = (1-asr)*preProfit - asr*asLossPU*qty
             //
-            // 按利润率反推: preProfit/revenueCNY = targetMargin/100
-            //   => revenueCNY - totalCostCNY = revenueCNY * targetMargin/100
-            //   => revenueCNY * (1 - targetMargin/100) = totalCostCNY
-            //   => revenueCNY = totalCostCNY / (1 - targetMargin/100)
-            //   => ((tp - lm)*qty + subUSD) * rate = totalCostCNY / (1 - targetMargin/100)
+            // 反推思路：由目标利润 → 反推所需 revenueCNY → 再解出 tp → price = tp * 100 / disc
             //
-            // 按利润额反推: preProfit = targetProfit
-            //   => revenueCNY = totalCostCNY + targetProfit
-            //
-            // 运补判断: sa = tp*(1+prem) <= subThr 时有运补
-            // 先假设无运补算一次，再假设有运补算一次，取合理的
-            
+            // 售前利润率 targetMargin%:
+            //   revenueCNY = totalCostCNY / (1 - targetMargin/100)
+            // 售前利润额 targetProfit:
+            //   revenueCNY = totalCostCNY + targetProfit
+            // 售后利润额 targetProfit:
+            //   afterProfit = (1-asr)*preProfit - asr*asLossPU*qty
+            //   preProfit = (targetProfit + asr*asLossPU*qty) / (1-asr)
+            //   revenueCNY = preProfit + totalCostCNY
+
             const totalCostCNY = wc * qty;
-            let requiredRev, usedSub = false;
-            
-            if(targetMargin > 0) {
-                if(targetMargin >= 100) return;
-                requiredRev = totalCostCNY / (1 - targetMargin/100);
+            const asLossPU = lm * g.rate + wc;
+            let requiredRev;
+
+            if(mode === 'after') {
+                // 售后模式：先将售后目标转为等效售前利润
+                const asr = g.asr || 0;
+                let effectivePreProfit;
+                if(targetMargin > 0) {
+                    // 售后利润率: afterProfit / revenueCNY = targetMargin/100
+                    // => (1-asr)*preProfit - asr*asLossPU*qty = targetMargin/100 * revenueCNY
+                    // => (1-asr)*(revenueCNY - totalCostCNY) - asr*asLossPU*qty = targetMargin/100 * revenueCNY
+                    // => revenueCNY * [(1-asr) - targetMargin/100] = (1-asr)*totalCostCNY + asr*asLossPU*qty
+                    // => revenueCNY = [(1-asr)*totalCostCNY + asr*asLossPU*qty] / [(1-asr) - targetMargin/100]
+                    const denominator = (1 - asr) - targetMargin / 100;
+                    if(denominator <= 0) return; // 目标利润率过高，无法达成
+                    requiredRev = ((1-asr)*totalCostCNY + asr*asLossPU*qty) / denominator;
+                } else {
+                    // 售后利润额: targetProfit = (1-asr)*preProfit - asr*asLossPU*qty
+                    // => preProfit = (targetProfit + asr*asLossPU*qty) / (1-asr)
+                    if(asr >= 1) return;
+                    effectivePreProfit = (targetProfit + asr * asLossPU * qty) / (1 - asr);
+                    requiredRev = totalCostCNY + effectivePreProfit;
+                }
             } else {
-                requiredRev = totalCostCNY + targetProfit;
+                // 售前模式
+                if(targetMargin > 0) {
+                    if(targetMargin >= 100) return;
+                    requiredRev = totalCostCNY / (1 - targetMargin/100);
+                } else {
+                    requiredRev = totalCostCNY + targetProfit;
+                }
             }
-            
-            // 先尝试无运补
-            // requiredRev = (tp - lm) * qty * rate
-            // tp = requiredRev / (qty * rate) + lm
+
+            // 由 requiredRev 解出 tp，先尝试无运补，再尝试有运补
+            // 无运补: requiredRev = (tp - lm) * qty * rate  =>  tp = requiredRev/(qty*rate) + lm
             let tpNoSub = requiredRev / (qty * g.rate) + lm;
             let saNoSub = tpNoSub * (1 + g.prem);
             let hasSubNoSub = hasSub && saNoSub <= g.subThr;
-            
-            // 再尝试有运补
-            // requiredRev = ((tp - lm)*qty + sub) * rate
-            // tp = (requiredRev/rate - sub) / qty + lm
+
+            // 有运补: requiredRev = ((tp - lm)*qty + sub) * rate  =>  tp = (requiredRev/rate - sub)/qty + lm
             let tpWithSub = (requiredRev / g.rate - g.sub) / qty + lm;
             let saWithSub = tpWithSub * (1 + g.prem);
             let hasSubWithSub = hasSub && saWithSub <= g.subThr;
-            
-            // 选择合理方案
+
+            // 选择合理方案：优先选择自洽的方案
             let tp, sa, subUSD, finalHasSub;
             if(hasSubWithSub && tpWithSub > 0) {
-                // 有运补方案合理
                 tp = tpWithSub; sa = saWithSub; subUSD = g.sub; finalHasSub = true;
             } else if(!hasSubNoSub && tpNoSub > 0) {
-                // 无运补方案合理
                 tp = tpNoSub; sa = saNoSub; subUSD = 0; finalHasSub = false;
             } else {
-                // 默认用无运补
                 tp = tpNoSub; sa = saNoSub; subUSD = 0; finalHasSub = false;
             }
-            
-            // 验证
+
+            // 验证（用 calcProfit 的公式验证结果）
             const actualRev = ((tp - lm)*qty + subUSD) * g.rate;
-            const actualProfit = actualRev - totalCostCNY;
-            const actualMargin = actualRev > 0 ? actualProfit/actualRev*100 : 0;
-            
+            const actualPreProfit = actualRev - totalCostCNY;
+            const actualAfterProfit = (1 - (g.asr||0)) * actualPreProfit - (g.asr||0) * asLossPU * qty;
+            const actualMargin = actualRev > 0 ? actualPreProfit / actualRev * 100 : 0;
+            const actualAfterMargin = actualRev > 0 ? actualAfterProfit / actualRev * 100 : 0;
+
             const currentPrice = p.price || V('bPrice');
             const diff = tp - (currentPrice||0);
-            
+
             results.push({
                 name: p.name,
                 currentPrice: currentPrice || 0,
@@ -816,13 +867,16 @@
                 subUSD,
                 hasSub: finalHasSub,
                 actualMargin,
-                actualProfit
+                actualAfterMargin,
+                actualPreProfit,
+                actualAfterProfit
             });
         });
 
+        const modeLabel = mode === 'after' ? '售后' : '售前';
         let html = '<div class="reverse-result">';
         html += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
-        html += '<tr style="border-bottom:2px solid #a7f3d0"><th style="text-align:left;padding:6px">产品</th><th>当前核价$</th><th>目标核价$</th><th>差额$</th><th>前台售价$</th><th>运补</th><th>验证利润率</th><th>验证利润¥</th></tr>';
+        html += `<tr style="border-bottom:2px solid #a7f3d0"><th style="text-align:left;padding:6px">产品</th><th>当前核价$</th><th>目标核价$</th><th>差额$</th><th>前台售价$</th><th>运补</th><th>验证${modeLabel}利润率</th><th>验证${modeLabel}利润¥</th></tr>`;
         results.forEach(r => {
             const color = r.diff > 0.01 ? 'var(--red)' : r.diff < -0.01 ? 'var(--green)' : 'var(--text)';
             html += `<tr style="border-bottom:1px solid #d1fae5">
