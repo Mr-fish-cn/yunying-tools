@@ -860,6 +860,7 @@
 
             results.push({
                 name: p.name,
+                factory: p.factory || '',
                 currentPrice: currentPrice || 0,
                 requiredPrice: tp,
                 diff,
@@ -876,11 +877,12 @@
         const modeLabel = mode === 'after' ? '售后' : '售前';
         let html = '<div class="reverse-result">';
         html += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
-        html += `<tr style="border-bottom:2px solid #a7f3d0"><th style="text-align:left;padding:6px">产品</th><th>当前核价$</th><th>目标核价$</th><th>差额$</th><th>前台售价$</th><th>运补</th><th>验证${modeLabel}利润率</th><th>验证${modeLabel}利润¥</th></tr>`;
+        html += `<tr style="border-bottom:2px solid #a7f3d0"><th style="text-align:left;padding:6px">产品</th><th>工厂</th><th>当前核价$</th><th>目标核价$</th><th>差额$</th><th>前台售价$</th><th>运补</th><th>验证${modeLabel}利润率</th><th>验证${modeLabel}利润¥</th></tr>`;
         results.forEach(r => {
             const color = r.diff > 0.01 ? 'var(--red)' : r.diff < -0.01 ? 'var(--green)' : 'var(--text)';
             html += `<tr style="border-bottom:1px solid #d1fae5">
                 <td style="padding:6px;text-align:left;font-weight:500">${escH(r.name)}</td>
+                <td style="text-align:left;font-size:11px;color:var(--gray)">${escH(r.factory)||'-'}</td>
                 <td style="text-align:center">${fmt(r.currentPrice)}</td>
                 <td style="text-align:center;font-weight:700;color:var(--blue)">${fmt(r.requiredPrice)}</td>
                 <td style="text-align:center;font-weight:600;color:${color}">${r.diff>0.01?'+':''}${fmt(r.diff)}</td>
