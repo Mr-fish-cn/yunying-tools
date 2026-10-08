@@ -103,7 +103,7 @@ https://example.com/only-url.webp"></textarea>
             <div style="margin: 8px 0;">
                 <label style="font-weight:400;font-size:13px;margin-bottom:4px">🔗 自定义代理（可选，解决跨域）：</label>
                 <div class="proxy-row">
-                    <input type="text" id="customProxy" placeholder="例：https://your-worker.workers.dev/?url=" style="flex:1">
+                    <input type="text" id="customProxy" value="https://image-proxy.xjyybdz.workers.dev/?url=" placeholder="例：https://your-worker.workers.dev/?url=" style="flex:1">
                     <button class="btn btn-sm btn-outline" onclick="testProxy()">测试代理</button>
                     <span id="proxyTestResult" style="font-size:12px"></span>
                 </div>
@@ -189,6 +189,7 @@ https://example.com/only-url.webp"></textarea>
 
     // ============ 代理配置 ============
     const BUILTIN_PROXIES = [
+        { name: '自建Worker', build: url => 'https://image-proxy.xjyybdz.workers.dev/?url=' + encodeURIComponent(url) },
         { name: 'weserv.nl', build: url => { try { const u = new URL(url); return 'https://images.weserv.nl/?url=' + encodeURIComponent(u.host + u.pathname + u.search); } catch { return null; } } },
         { name: 'corsproxy.io', build: url => 'https://corsproxy.io/?' + encodeURIComponent(url) },
         { name: 'allorigins.win', build: url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url) },
